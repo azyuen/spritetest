@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sprite Workbench</title>
+<style>
+:root{--bg:#0d1017;--panel:#151a24;--panel2:#1d2430;--line:#2b3443;--text:#f5f7fb;--muted:#99a5b5;--accent:#7dd3fc;--accent2:#a78bfa;--danger:#fb7185}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select{font:inherit}.app{display:grid;grid-template-columns:320px minmax(420px,1fr) 360px;min-height:100vh}.panel{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow:auto}.panel.right{border-right:0;border-left:1px solid var(--line)}
+h1{font-size:20px;margin:0 0 3px}.sub{color:var(--muted);font-size:12px;margin-bottom:18px}.section{margin:0 0 20px}.section h2{font-size:12px;text-transform:uppercase;letter-spacing:.11em;color:#c5ced9;margin:0 0 9px}
+.drop{border:1px dashed #526078;border-radius:12px;padding:16px;text-align:center;color:var(--muted);cursor:pointer;background:#111721}.drop.drag{border-color:var(--accent);background:#12202b}.drop strong{display:block;color:var(--text);margin-bottom:3px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field{margin-bottom:9px}.field label{display:flex;justify-content:space-between;color:#cbd5e1;font-size:12px;margin-bottom:4px}.field small{color:var(--muted)} input[type=number],select,input[type=text]{width:100%;background:#0f141d;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 9px} input[type=range]{width:100%}.check{display:flex;gap:8px;align-items:center;margin:8px 0;color:#d5dce6}
+button{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 11px;border-radius:9px;cursor:pointer}button:hover{border-color:#526078}.primary{background:#173042;border-color:#2f6682}.secondary{background:#27203c;border-color:#59478b}.danger{color:#fecdd3}.btnrow{display:flex;gap:7px;flex-wrap:wrap}
+.asset-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto}.asset{padding:8px;border:1px solid var(--line);border-radius:8px;background:#10151e;cursor:pointer}.asset.active{border-color:var(--accent);background:#12202b}.asset .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.asset .meta{font-size:11px;color:var(--muted)}
+.main{display:flex;flex-direction:column;min-width:0}.topbar{padding:12px 16px;border-bottom:1px solid var(--line);background:#10151e;display:flex;gap:12px;align-items:center;justify-content:space-between}.metrics{display:flex;gap:14px;flex-wrap:wrap}.metric b{font-size:12px}.metric span{font-size:11px;color:var(--muted);display:block}
+.stagewrap{flex:1;display:grid;place-items:center;padding:24px;overflow:auto}.stagebox{width:min(760px,100%);aspect-ratio:4/3;border:1px solid var(--line);border-radius:16px;display:grid;place-items:center;overflow:hidden;position:relative;background-color:#0c1118;background-image:linear-gradient(45deg,#18202b 25%,transparent 25%),linear-gradient(-45deg,#18202b 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#18202b 75%),linear-gradient(-45deg,transparent 75%,#18202b 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0px}
+#preview{max-width:none;max-height:none;image-rendering:pixelated}.hud{position:absolute;left:10px;bottom:10px;background:#090d13cc;border:1px solid #27303d;border-radius:8px;padding:6px 8px;color:#dbe5f0;font-size:11px}.timeline{padding:12px 16px;border-top:1px solid var(--line);background:#10151e}.thumbs{display:flex;gap:6px;overflow:auto;padding:6px 0 2px}.thumb{width:54px;height:54px;flex:0 0 auto;border:1px solid var(--line);border-radius:7px;display:grid;place-items:center;background:#0d121a;cursor:pointer;overflow:hidden}.thumb.active{outline:2px solid var(--accent)}.thumb canvas{max-width:100%;max-height:100%;image-rendering:pixelated}
+.atlas-preview{width:100%;min-height:220px;border:1px solid var(--line);border-radius:10px;background:#0e131c;display:grid;place-items:center;overflow:auto}.atlas-preview canvas{max-width:100%;height:auto;image-rendering:pixelated}.note{font-size:11px;color:var(--muted);padding:8px 0}.summary{background:#10151e;border:1px solid var(--line);padding:10px;border-radius:9px;font-size:12px}.summary code{color:#bae6fd}.status{color:#cbd5e1;font-size:12px}.warn{color:#fda4af}
+@media(max-width:1100px){.app{grid-template-columns:280px 1fr}.panel.right{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:760px){.app{display:block}.panel{border-right:0;border-bottom:1px solid var(--line)}.stagebox{aspect-ratio:3/4}.main{min-height:72vh}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <h1>Sprite Workbench</h1>
+    <div class="sub">Inspect · slice · animate · scale · pack</div>
+
+    <div class="section">
+      <div class="drop" id="drop"><strong>Drop PNG/WebP sprites here</strong>or click to choose multiple files<input id="files" type="file" accept="image/png,image/webp,image/jpeg" multiple hidden></div>
+    </div>
+
+    <div class="section">
+      <h2>Assets</h2><div id="assets" class="asset-list"><div class="status">No sprites loaded yet.</div></div>
+    </div>
+
+    <div class="section">
+      <h2>Frame source</h2>
+      <div class="field"><label>Mode</label><select id="mode"><option value="sheet">Slice selected sprite sheet</option><option value="files">Each uploaded image = one frame</option></select></div>
+      <div id="sheetControls">
+        <div class="row"><div class="field"><label>Frame width <small>px</small></label><input id="fw" type="number" min="1" value="64"></div><div class="field"><label>Frame height <small>px</small></label><input id="fh" type="number" min="1" value="64"></div></div>
+        <div class="row"><div class="field"><label>Margin <small>px</small></label><input id="margin" type="number" min="0" value="0"></div><div class="field"><label>Spacing <small>px</small></label><input id="spacing" type="number" min="0" value="0"></div></div>
+        <button id="guess">Guess frame size</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Animation test</h2>
+      <div class="field"><label>Frame rate <small><span id="fpsLabel">12</span> FPS</small></label><input id="fps" type="range" min="1" max="30" value="12"></div>
+      <div class="field"><label>Preview scale <small><span id="scaleLabel">4×</span></small></label><input id="scale" type="range" min="1" max="10" value="4"></div>
+      <label class="check"><input id="pixel" type="checkbox" checked> Pixel-perfect / nearest-neighbour</label>
+      <label class="check"><input id="pingpong" type="checkbox"> Ping-pong playback</label>
+      <div class="btnrow"><button class="primary" id="play">▶ Play</button><button id="prev">◀</button><button id="next">▶</button></div>
+    </div>
+
+    <div class="section">
+      <h2>Useful measurements</h2>
+      <div class="summary" id="measurements">Load a sprite to see dimensions and frame counts.</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar"><div class="metrics" id="metrics"></div><div class="status" id="status">Ready</div></div>
+    <div class="stagewrap"><div class="stagebox"><canvas id="preview"></canvas><div class="hud" id="hud">Frame —</div></div></div>
+    <div class="timeline"><div class="btnrow"><button id="first">|◀</button><button id="last">▶|</button><span class="status" id="frameText">No frames</span></div><div class="thumbs" id="thumbs"></div></div>
+  </main>
+
+  <aside class="panel right">
+    <div class="section"><h2>Atlas builder</h2>
+      <div class="field"><label>Export resolution</label><select id="resolution"><option value="1">1× (original)</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option><option value="2">2× (upscale)</option></select></div>
+      <div class="row"><div class="field"><label>Max atlas width <small>px</small></label><select id="atlasWidth"><option>256</option><option>512</option><option selected>1024</option><option>2048</option><option>4096</option></select></div><div class="field"><label>Padding <small>px</small></label><input id="padding" type="number" min="0" max="32" value="2"></div></div>
+      <label class="check"><input id="power2" type="checkbox" checked> Round atlas to power-of-two</label>
+      <button class="secondary" id="build">Build atlas from current frames</button>
+      <div class="note">For game art, resolution scale matters more than DPI. “72/96/300 DPI” does not change the actual pixel detail unless the image is resampled.</div>
+    </div>
+    <div class="section"><h2>Atlas preview</h2><div class="atlas-preview" id="atlasPreview"><span class="status">Build an atlas to preview it.</span></div></div>
+    <div class="section"><h2>Export</h2>
+      <div class="field"><label>Base filename</label><input id="baseName" type="text" value="sprite-atlas"></div>
+      <div class="btnrow"><button class="primary" id="savePng" disabled>Download PNG</button><button class="primary" id="saveJson" disabled>Download JSON</button></div>
+      <div class="note">JSON uses a Phaser-style frame map with x/y/w/h, source size, and atlas metadata.</div>
+    </div>
+    <div class="section"><h2>Workflow tip</h2><div class="summary">1. Upload frames or a sheet.<br>2. Slice until the thumbnails line up.<br>3. Test at <code>8–18 FPS</code>.<br>4. Check 2×–6× preview scale.<br>5. Export a <code>1×</code> master atlas, then make smaller variants only if needed.</div></div>
+  </aside>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const state={assets:[],selected:0,frames:[],frame:0,playing:false,last:0,acc:0,dir:1,atlas:null,atlasJson:null};
+const drop=$('drop'), fileInput=$('files');
+drop.onclick=()=>fileInput.click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')}; drop.ondragleave=()=>drop.classList.remove('drag');
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');loadFiles([...e.dataTransfer.files])}; fileInput.onchange=e=>loadFiles([...e.target.files]);
+function loadFiles(files){ files.filter(f=>f.type.startsWith('image/')).forEach(file=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{state.assets.push({file,url,img,name:file.name,w:img.naturalWidth,h:img.naturalHeight}); if(state.assets.length===1){state.selected=0;$('fw').value=img.naturalWidth;$('fh').value=img.naturalHeight} renderAssets(); rebuildFrames();};img.src=url;}); }
+function renderAssets(){const el=$('assets');el.innerHTML='';state.assets.forEach((a,i)=>{const d=document.createElement('div');d.className='asset'+(i===state.selected?' active':'');d.innerHTML=`<div class="name">${esc(a.name)}</div><div class="meta">${a.w} × ${a.h}px</div>`;d.onclick=()=>{state.selected=i;renderAssets();if($('mode').value==='sheet'){ $('fw').value=Math.min(+$('fw').value||a.w,a.w); $('fh').value=Math.min(+$('fh').value||a.h,a.h)} rebuildFrames()};el.appendChild(d)});}
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+['fw','fh','margin','spacing'].forEach(id=>$(id).addEventListener('input',rebuildFrames)); $('mode').onchange=()=>{$('sheetControls').style.display=$('mode').value==='sheet'?'block':'none';rebuildFrames()};
+$('guess').onclick=()=>{const a=state.assets[state.selected];if(!a)return; const candidates=[16,24,32,40,48,64,80,96,128,160,192,256,320,384,512];let best=null;for(const s of candidates){if(a.w%s===0&&a.h%s===0){const n=(a.w/s)*(a.h/s);if(n>=2&&n<=64)best={w:s,h:s,n}}} if(best){$('fw').value=best.w;$('fh').value=best.h;rebuildFrames();$('status').textContent=`Guessed ${best.w}×${best.h} (${best.n} frames)`} else {$('fw').value=a.w;$('fh').value=a.h;rebuildFrames();$('status').textContent='No obvious square grid found; set dimensions manually.'}};
+function rebuildFrames(){state.frames=[];state.frame=0;state.dir=1; if(!state.assets.length){renderAll();return} if($('mode').value==='files'){state.assets.forEach((a,i)=>state.frames.push({img:a.img,sx:0,sy:0,sw:a.w,sh:a.h,name:strip(a.name)||`frame_${i}`}));} else {const a=state.assets[state.selected],fw=Math.max(1,+$('fw').value||a.w),fh=Math.max(1,+$('fh').value||a.h),m=Math.max(0,+$('margin').value||0),sp=Math.max(0,+$('spacing').value||0);let n=0;for(let y=m;y+fh<=a.h-m;y+=fh+sp){for(let x=m;x+fw<=a.w-m;x+=fw+sp){state.frames.push({img:a.img,sx:x,sy:y,sw:fw,sh:fh,name:`${strip(a.name)}_${String(n++).padStart(3,'0')}`})}}} renderAll();}
+function strip(n){return n.replace(/\.[^.]+$/,'').replace(/[^a-z0-9_-]+/gi,'_')}
+function renderAll(){renderPreview();renderThumbs();renderMetrics();state.atlas=null;state.atlasJson=null;$('savePng').disabled=true;$('saveJson').disabled=true;$('atlasPreview').innerHTML='<span class="status">Build an atlas to preview it.</span>'}
+function renderPreview(){const c=$('preview'),ctx=c.getContext('2d');const f=state.frames[state.frame];if(!f){c.width=1;c.height=1;$('hud').textContent='Frame —';$('frameText').textContent='No frames';return} const sc=+$('scale').value;c.width=Math.max(1,Math.round(f.sw*sc));c.height=Math.max(1,Math.round(f.sh*sc));c.style.width=c.width+'px';c.style.height=c.height+'px';ctx.imageSmoothingEnabled=!$('pixel').checked;ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(f.img,f.sx,f.sy,f.sw,f.sh,0,0,c.width,c.height);$('hud').textContent=`Frame ${state.frame+1}/${state.frames.length} · ${f.sw}×${f.sh}px · ${$('fps').value} FPS`;$('frameText').textContent=`${f.name}`;document.querySelectorAll('.thumb').forEach((t,i)=>t.classList.toggle('active',i===state.frame));}
+function renderThumbs(){const el=$('thumbs');el.innerHTML='';state.frames.forEach((f,i)=>{const d=document.createElement('div');d.className='thumb'+(i===state.frame?' active':'');const c=document.createElement('canvas');const sc=Math.min(48/f.sw,48/f.sh,1);c.width=Math.max(1,Math.round(f.sw*sc));c.height=Math.max(1,Math.round(f.sh*sc));const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(f.img,f.sx,f.sy,f.sw,f.sh,0,0,c.width,c.height);d.appendChild(c);d.title=f.name;d.onclick=()=>{state.frame=i;renderPreview()};el.appendChild(d)});}
+function renderMetrics(){const a=state.assets[state.selected],f=state.frames[0];$('metrics').innerHTML=`<div class="metric"><b>${state.frames.length}</b><span>frames</span></div>${a?`<div class="metric"><b>${a.w}×${a.h}</b><span>source px</span></div>`:''}${f?`<div class="metric"><b>${f.sw}×${f.sh}</b><span>frame px</span></div>`:''}<div class="metric"><b>${$('fps').value}</b><span>FPS</span></div>`;if(!a){$('measurements').textContent='Load a sprite to see dimensions and frame counts.';return} if($('mode').value==='sheet'&&f){const cols=countCols(a,f.sw),rows=countRows(a,f.sh);$('measurements').innerHTML=`Source: <code>${a.w} × ${a.h}px</code><br>Frame: <code>${f.sw} × ${f.sh}px</code><br>Grid: about <code>${cols} columns × ${rows} rows</code><br>Frames found: <code>${state.frames.length}</code><br>Loop duration at ${$('fps').value} FPS: <code>${(state.frames.length/(+$('fps').value)).toFixed(2)}s</code>`} else if(f){$('measurements').innerHTML=`Images loaded: <code>${state.assets.length}</code><br>Current frame: <code>${f.sw} × ${f.sh}px</code><br>Loop duration at ${$('fps').value} FPS: <code>${(state.frames.length/(+$('fps').value)).toFixed(2)}s</code>`}}
+function countCols(a,fw){const m=+$('margin').value||0,sp=+$('spacing').value||0;return Math.max(0,Math.floor((a.w-2*m+sp)/(fw+sp)))} function countRows(a,fh){const m=+$('margin').value||0,sp=+$('spacing').value||0;return Math.max(0,Math.floor((a.h-2*m+sp)/(fh+sp)))}
+$('fps').oninput=()=>{$('fpsLabel').textContent=$('fps').value;renderMetrics();renderPreview()};$('scale').oninput=()=>{$('scaleLabel').textContent=$('scale').value+'×';renderPreview()};$('pixel').onchange=renderPreview;
+$('play').onclick=()=>{state.playing=!state.playing;$('play').textContent=state.playing?'❚❚ Pause':'▶ Play'};$('prev').onclick=()=>step(-1);$('next').onclick=()=>step(1);$('first').onclick=()=>{state.frame=0;renderPreview()};$('last').onclick=()=>{state.frame=Math.max(0,state.frames.length-1);renderPreview()};
+function step(d){if(!state.frames.length)return;state.frame=(state.frame+d+state.frames.length)%state.frames.length;renderPreview()}
+function tick(t){if(state.playing&&state.frames.length>1){if(!state.last)state.last=t;state.acc+=t-state.last;const interval=1000/(+$('fps').value);while(state.acc>=interval){state.acc-=interval;if($('pingpong').checked){state.frame+=state.dir;if(state.frame>=state.frames.length-1){state.frame=state.frames.length-1;state.dir=-1}else if(state.frame<=0){state.frame=0;state.dir=1}} else state.frame=(state.frame+1)%state.frames.length;renderPreview()}}state.last=t;requestAnimationFrame(tick)}requestAnimationFrame(tick);
+$('build').onclick=buildAtlas;
+function nextPow2(n){let p=1;while(p<n)p*=2;return p}
+function buildAtlas(){if(!state.frames.length){$('status').textContent='Load frames first.';return} const scale=+$('resolution').value,pad=Math.max(0,+$('padding').value||0),maxW=+$('atlasWidth').value;const items=state.frames.map((f,i)=>({f,i,w:Math.max(1,Math.round(f.sw*scale)),h:Math.max(1,Math.round(f.sh*scale))}));let x=pad,y=pad,rowH=0,usedW=0;for(const it of items){if(x+it.w+pad>maxW&&x>pad){x=pad;y+=rowH+pad;rowH=0}it.x=x;it.y=y;x+=it.w+pad;rowH=Math.max(rowH,it.h);usedW=Math.max(usedW,x)}let outW=Math.min(maxW,Math.max(1,usedW)),outH=Math.max(1,y+rowH+pad);if($('power2').checked){outW=nextPow2(outW);outH=nextPow2(outH)}const c=document.createElement('canvas');c.width=outW;c.height=outH;const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=!$('pixel').checked;ctx.clearRect(0,0,outW,outH);const frames={};for(const it of items){ctx.drawImage(it.f.img,it.f.sx,it.f.sy,it.f.sw,it.f.sh,it.x,it.y,it.w,it.h);frames[it.f.name]={frame:{x:it.x,y:it.y,w:it.w,h:it.h},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:it.w,h:it.h},sourceSize:{w:it.w,h:it.h}}}const base=strip($('baseName').value||'sprite-atlas');state.atlas=c;state.atlasJson={frames,meta:{app:'Sprite Workbench',version:'1.0',image:base+'.png',format:'RGBA8888',size:{w:outW,h:outH},scale:String(scale)}};const host=$('atlasPreview');host.innerHTML='';host.appendChild(c);$('savePng').disabled=false;$('saveJson').disabled=false;$('status').textContent=`Atlas built: ${outW}×${outH}px · ${items.length} frames · ${scale}×`;}
+$('savePng').onclick=()=>{if(!state.atlas)return;const base=strip($('baseName').value||'sprite-atlas');state.atlas.toBlob(b=>downloadBlob(b,base+'.png'))};$('saveJson').onclick=()=>{if(!state.atlasJson)return;const base=strip($('baseName').value||'sprite-atlas');const blob=new Blob([JSON.stringify(state.atlasJson,null,2)],{type:'application/json'});downloadBlob(blob,base+'.json')};
+function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('resolution').onchange=()=>state.atlas&&buildAtlas();$('atlasWidth').onchange=()=>state.atlas&&buildAtlas();$('padding').oninput=()=>state.atlas&&buildAtlas();$('power2').onchange=()=>state.atlas&&buildAtlas();
+window.addEventListener('keydown',e=>{if(['INPUT','SELECT'].includes(document.activeElement.tagName))return;if(e.code==='Space'){e.preventDefault();$('play').click()}if(e.key==='ArrowLeft')step(-1);if(e.key==='ArrowRight')step(1)});
+renderAll();
+</script>
+</body>
+</html>
