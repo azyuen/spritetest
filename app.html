@@ -4,17 +4,104 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1" />
 <title>Sprite Workbench</title>
-<link rel="stylesheet" href="app.css?v=1" />
+<link rel="stylesheet" href="app.css?v=2" />
 </head>
 <body>
 <div class="app">
 <div class="safe-top" aria-hidden="true"></div>
-<header class="apphead"><div class="brandrow"><div class="brand"><h1>Sprite Workbench</h1><div class="sub">Assets → Sprite Design → Atlas Builder</div></div><div class="status" id="globalStatus">Ready</div></div><nav class="tabs"><button class="tabbtn active" data-tab="assetsTab">1 · Assets</button><button class="tabbtn" data-tab="designTab">2 · Sprite Design</button><button class="tabbtn" data-tab="atlasTab">3 · Atlas Builder</button></nav></header>
+<header class="apphead"><div class="brandrow"><div class="brand"><h1>Sprite Workbench</h1><div class="sub">Assets → Sprite Design → Atlas Builder</div></div><div class="status" id="globalStatus">Ready</div></div><nav class="tabs"><button class="tabbtn active" data-tab="assetsTab">1 · Assets</button><button class="tabbtn" data-tab="designTab">2 · Sprite Design</button><button class="tabbtn" data-tab="atlasTab">3 · Atlas Builder</button><button class="tabbtn" data-tab="alignTab">4 · Canvas Align</button></nav></header>
 <section class="tabpanel active" id="assetsTab"><div class="assetgrid"><div><div class="drop" id="drop"><strong>Drop PNG/WebP/JPEG sprites here</strong>or tap to choose multiple files<input id="files" type="file" accept="image/png,image/webp,image/jpeg" multiple hidden></div><div class="section" style="margin-top:16px"><h2>Asset order</h2><div class="note">This order is used when <b>Each uploaded image = one frame</b>. Drag rows or use ↑/↓. You can also delete any asset directly from this list.</div><div id="assets" class="asset-list"><div class="status">No sprites loaded yet.</div></div></div></div><aside><div class="section"><h2>Sequence naming</h2><div class="field"><label>Base name</label><input id="renameBase" type="text" value="Character-Action"></div><div class="row"><div class="field"><label>Start number</label><input id="renameStart" type="number" min="0" value="1"></div><div class="field"><label>Digits</label><select id="renameDigits"><option>2</option><option selected>3</option><option>4</option></select></div></div><div class="btnrow"><button class="secondary" id="applyRename">Apply names in order</button><button id="restoreNames">Restore uploaded names</button></div><div class="note">Example: <code>Character-Action-001.png</code>. The originals on your device are not changed; these names are used for frames and exported copies.</div></div><div class="section"><h2>Selected asset</h2><div class="summary" id="selectedInfo">Select an asset to see details.</div><div class="btnrow" style="margin-top:8px"><button id="duplicateSelected">Duplicate</button><button id="downloadSelected">Download renamed copy</button><button class="danger" id="removeSelected">Delete selected</button></div></div><div class="section"><h2>Sequence actions</h2><div class="btnrow"><button id="downloadAll">Download all renamed copies</button><button id="clearAll" class="danger">Clear all</button></div></div></aside></div></section>
 <section class="tabpanel" id="designTab"><div class="workspace"><aside class="side"><div class="section"><h2>Frame source</h2><div class="field"><label>Mode</label><select id="mode"><option value="files">Each uploaded image = one frame</option><option value="sheet">Slice selected sprite sheet</option></select></div><div id="sheetControls" style="display:none"><div class="row"><div class="field"><label>Frame width <small>px</small></label><input id="fw" type="number" min="1" value="64"></div><div class="field"><label>Frame height <small>px</small></label><input id="fh" type="number" min="1" value="64"></div></div><div class="row"><div class="field"><label>Margin <small>px</small></label><input id="margin" type="number" min="0" value="0"></div><div class="field"><label>Spacing <small>px</small></label><input id="spacing" type="number" min="0" value="0"></div></div><button id="guess">Guess frame size</button><div class="note">Important: if artwork spills outside each sheet cell, no atlas builder can recover those overflow pixels. For big sword slashes or effects, use larger cells or upload each frame as a separate image.</div></div></div><div class="section"><h2>Master canvas</h2><div class="row"><div class="field"><label>Logical width <small>px</small></label><input id="canvasW" type="number" min="1" value="0"></div><div class="field"><label>Logical height <small>px</small></label><input id="canvasH" type="number" min="1" value="0"></div></div><div class="btnrow"><button id="setCanvasMax">Use max frame size</button><button id="centerRoot">Root at bottom centre</button></div><div class="note">This is the shared animation space for every frame. The preview and atlas JSON both use this logical canvas.</div></div><div class="section"><h2>Root / pivot marker</h2><div class="row"><div class="field"><label>Root X <small>px</small></label><input id="rootX" type="number" value="0"></div><div class="field"><label>Root Y <small>px</small></label><input id="rootY" type="number" value="0"></div></div><label class="check"><input id="showRoot" type="checkbox" checked> Show root marker on preview</label><div class="note">Set this to the feet/ground point that should stay consistent across the animation. The atlas JSON exports this as a pivot value.</div></div><div class="section"><h2>Current frame alignment</h2><div class="row"><div class="field"><label>Offset X <small>px</small></label><input id="offsetX" type="number" value="0"></div><div class="field"><label>Offset Y <small>px</small></label><input id="offsetY" type="number" value="0"></div></div><div class="note">Move the current frame inside the master canvas so the feet line up with the root marker. This offset is saved per frame.</div></div><div class="section"><h2>Animation test</h2><div class="field"><label>Frame rate <small><span id="fpsLabel">12</span> FPS</small></label><input id="fps" type="range" min="1" max="30" value="12"></div><label class="check"><input id="pixel" type="checkbox" checked> Pixel-perfect / nearest-neighbour</label><label class="check"><input id="pingpong" type="checkbox"> Ping-pong playback</label><div class="btnrow"><button class="primary" id="play">▶ Play</button><button id="prev">◀</button><button id="next">▶</button></div></div><div class="section"><h2>Preview navigation</h2><div class="field"><label>Zoom <small><span id="zoomLabel">100%</span></small></label><input id="previewZoom" type="range" min="1" max="1000" step="1" value="100"></div><div class="btnrow"><button id="fitPreview">Fit frame</button><button id="actualPreview">100%</button><button id="resetPreviewPan">Center</button></div><div class="note">Use the grey button inside the preview itself to lock or unlock dragging and pinch zoom.</div></div><div class="section"><h2>Measurements</h2><div class="summary" id="measurements">Load a sprite to see dimensions and frame counts.</div></div></aside><main class="content"><div class="topbar"><div class="metrics" id="metrics"></div><div class="status" id="designStatus">Ready</div></div><div class="stagewrap"><div class="viewport" id="previewViewport"><div class="canvaslayer" id="previewLayer"><canvas id="preview"></canvas></div><div class="hud" id="hud">Frame —</div><button class="panhint" id="previewHint" type="button">Navigation locked</button></div></div><div class="timeline"><div class="btnrow"><button id="first">|◀</button><button id="last">▶|</button><span class="status" id="frameText">No frames</span></div><div class="note">Drag thumbnails to change sequence order. In uploaded-frame mode this also changes the Assets order and atlas order.</div><div class="thumbs" id="thumbs"></div></div></main></div></section>
 <section class="tabpanel" id="atlasTab"><div class="atlaslayout"><aside class="atlascontrols"><div class="section"><h2>Atlas layout</h2><div class="field"><label>Frames per row</label><input id="framesPerRow" type="number" min="1" max="64" value="8"></div><div class="field"><label>Export resolution</label><select id="resolution"><option value="1">1× (original)</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option><option value="2">2× (upscale)</option></select></div><div class="row"><div class="field"><label>Padding <small>px</small></label><input id="padding" type="number" min="0" max="64" value="2"></div><div class="field"><label>Outer margin <small>px</small></label><input id="atlasMargin" type="number" min="0" max="64" value="2"></div></div><label class="check"><input id="trimAtlas" type="checkbox" checked> Trim transparent bounds and preserve logical canvas</label><label class="check"><input id="power2" type="checkbox"> Round atlas to power-of-two</label><button class="secondary" id="build">Build / refresh atlas</button><div class="note">Recommended: use trimmed PNG + JSON atlas for Phaser. This keeps one consistent character coordinate system while allowing large sword/effect frames to take different physical sizes.</div></div><div class="section"><h2>Atlas preview</h2><div class="field"><label>Zoom <small><span id="atlasZoomLabel">100%</span></small></label><input id="atlasZoom" type="range" min="0.1" max="800" step="0.1" value="100"></div><div class="btnrow"><button id="fitAtlas">Fit atlas</button><button id="actualAtlas">100%</button><button id="resetAtlasPan">Center</button></div><div class="note">Use the grey button inside the atlas preview itself to lock or unlock dragging and pinch zoom.</div></div><div class="section"><h2>Export</h2><div class="field"><label>Base filename</label><input id="baseName" type="text" value="sprite-atlas"></div><div class="btnrow"><button class="primary" id="savePng" disabled>Download PNG</button><button class="primary" id="saveJson" disabled>Download JSON</button></div></div><div class="section"><h2>Atlas info</h2><div class="summary" id="atlasInfo">Build an atlas to see dimensions.</div></div></aside><main class="atlasmain"><div class="topbar"><div class="metrics" id="atlasMetrics"></div><div class="status" id="atlasStatus">Not built</div></div><div class="atlasviewwrap"><div class="atlasviewport" id="atlasViewport"><div class="atlaslayer" id="atlasLayer"></div><div class="atlasempty" id="atlasEmpty">Build an atlas to preview it.</div><button class="panhint" id="atlasHint" type="button">Navigation locked</button></div></div></main></div></section>
+
+<section class="tabpanel" id="alignTab">
+  <div class="alignlayout">
+    <aside class="aligncontrols">
+      <div class="section">
+        <h2>Reference + target</h2>
+        <div class="field"><label>Fixed reference</label><select id="alignReference"></select></div>
+        <div class="field"><label>Movable target</label><select id="alignTarget"></select></div>
+        <div class="note">The reference never moves. The target is scaled and shifted around the shared canvas centre. This mirrors the way Phaser places a sprite with a 0.5 / 0.5 origin.</div>
+      </div>
+
+      <div class="section">
+        <h2>Transform</h2>
+        <div class="row">
+          <div class="field"><label>Shift X <small>px</small></label><input id="alignX" type="number" step="0.25" value="0"></div>
+          <div class="field"><label>Shift Y <small>px</small></label><input id="alignY" type="number" step="0.25" value="0"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Scale X <small>%</small></label><input id="alignScaleX" type="number" min="1" max="500" step="0.05" value="100"></div>
+          <div class="field"><label>Scale Y <small>%</small></label><input id="alignScaleY" type="number" min="1" max="500" step="0.05" value="100"></div>
+        </div>
+        <label class="check"><input id="alignLockAspect" type="checkbox" checked> Lock X/Y scale together</label>
+        <div class="btnrow"><button id="alignReset">Reset transform</button><button id="alignCentre">Centre target</button></div>
+        <div class="summary" id="alignTransformSummary" style="margin-top:9px">Choose a reference and target asset.</div>
+      </div>
+
+      <div class="section">
+        <h2>Nudge</h2>
+        <div class="field"><label>Button step <small>px</small></label>
+          <select id="alignNudge"><option value="0.25">0.25</option><option value="1" selected>1</option><option value="5">5</option><option value="10">10</option></select>
+        </div>
+        <div class="align-nudge">
+          <span></span><button id="alignUp">↑</button><span></span>
+          <button id="alignLeft">←</button><button id="alignDown">↓</button><button id="alignRight">→</button>
+        </div>
+        <div class="note">You can also drag the target directly. Keyboard arrows nudge 1px, Shift + arrows = 10px, Option/Alt + arrows = 0.25px.</div>
+      </div>
+
+      <div class="section">
+        <h2>Two-point auto align</h2>
+        <div class="btnrow align-point-buttons">
+          <button data-align-pick="refA">Set Ref A</button>
+          <button data-align-pick="refB">Set Ref B</button>
+          <button data-align-pick="targetA">Set Target A</button>
+          <button data-align-pick="targetB">Set Target B</button>
+        </div>
+        <div class="btnrow" style="margin-top:8px"><button class="primary" id="alignMatchPoints">Match two points</button><button id="alignClearPoints">Clear points</button></div>
+        <div class="note">For cars: use rear and front wheel centres. For characters: feet + head, or two shoulder/hip landmarks. The tool calculates scale and translation, then you can fine-tune manually.</div>
+        <div class="summary" id="alignPointInfo">Reference A: —<br>Reference B: —<br>Target A: —<br>Target B: —</div>
+      </div>
+
+      <div class="section">
+        <h2>Preview</h2>
+        <div class="field"><label>Reference opacity <small><span id="alignRefOpacityLabel"></span></small></label><input id="alignRefOpacity" type="range" min="0" max="100" value="55"></div>
+        <div class="field"><label>Target opacity</label><input id="alignTargetOpacity" type="range" min="0" max="100" value="75"></div>
+        <div class="field"><label>Blend mode</label><select id="alignBlend"><option value="source-over">Normal</option><option value="difference">Difference</option><option value="multiply">Multiply</option><option value="screen">Screen</option></select></div>
+        <label class="check"><input id="alignPixel" type="checkbox"> Nearest-neighbour scaling</label>
+        <div class="field"><label>Preview zoom <small><span id="alignZoomLabel">100%</span></small></label><input id="alignZoom" type="range" min="5" max="400" step="1" value="100"></div>
+        <div class="btnrow"><button id="alignFit">Fit canvas</button><button id="alignActual">100%</button></div>
+      </div>
+
+      <div class="section">
+        <h2>Linked exports</h2>
+        <div class="note">Select any sibling PNGs that should receive exactly the same transform. This is ideal for <b>paint + details</b> pairs: align one visually, then export both identically.</div>
+        <div id="alignLinked" class="align-linked-list"></div>
+      </div>
+
+      <div class="section">
+        <h2>Export</h2>
+        <div class="field"><label>Filename suffix</label><input id="alignSuffix" type="text" value="_aligned"></div>
+        <div class="btnrow"><button class="primary" id="alignExportPrimary">Download target PNG</button><button class="primary" id="alignExportGroup">Download target + linked</button><button id="alignExportJson">Download transform JSON</button></div>
+        <div class="note">Every exported PNG is written onto the <b>exact reference canvas dimensions</b> with transparent background. The reference artwork itself is never baked into the export.</div>
+      </div>
+    </aside>
+
+    <main class="alignmain">
+      <div class="topbar"><div class="metrics" id="alignMetrics"></div><div class="status" id="alignStatus">Load two assets, then align the target.</div></div>
+      <div class="alignviewwrap">
+        <div class="alignviewport" id="alignViewport">
+          <canvas id="alignCanvas"></canvas>
+          <div class="align-help">Drag target to move · choose Difference blend to expose mismatched edges</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</section>
 </div>
-<script src="app-core.js?v=1"></script>
-<script src="app-atlas.js?v=1"></script>
+<script src="app-core.js?v=2"></script>
+<script src="app-atlas.js?v=2"></script>
+<script src="app-align.js?v=1"></script>
 </body>
 </html>
