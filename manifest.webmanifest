@@ -1,7 +1,7 @@
 {
-  "name": "Sprite Workbench",
-  "short_name": "Sprites",
-  "description": "Inspect, slice, animate, scale and pack sprites into atlases.",
+  "name": "SpriteR",
+  "short_name": "SpriteR",
+  "description": "SpriteR sprite alignment and asset workbench.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
