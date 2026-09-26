@@ -12,6 +12,7 @@
   const blend=byId('resizeBlend');
   const canvas=byId('resizeCanvas');
   const ctx=canvas.getContext('2d');
+  let overwriteMode=null;
 
   const clampNumber=(value,min,max)=>Math.max(min,Math.min(max,Number(value)||min));
   const assetById=id=>state.assets.find(asset=>asset.id===id)||null;
@@ -171,6 +172,41 @@
     return /\.png$/i.test(raw)?raw:raw.replace(/\.[^.]+$/, '')+'.png';
   }
 
+  function armOverwrite(mode){
+    if(!state.assets.length)return;
+    overwriteMode=mode;
+    const count=mode==='all'?state.assets.length:1;
+    byId('resizeOverwriteConfirmText').textContent='Replace '+count+' loaded working cop'+(count===1?'y':'ies')+' with the resized result?';
+    byId('resizeOverwriteConfirm').hidden=false;
+    byId('resizeStatus').textContent='Confirm overwrite below.';
+  }
+  function cancelOverwrite(){
+    overwriteMode=null;
+    byId('resizeOverwriteConfirm').hidden=true;
+  }
+  async function confirmOverwrite(){
+    if(!overwriteMode)return cancelOverwrite();
+    const assets=overwriteMode==='all'?[...state.assets]:[assetById(bottomSelect.value)||state.assets[0]].filter(Boolean);
+    const button=byId('resizeOverwriteConfirmBtn');
+    button.disabled=true;
+    try{
+      for(const asset of assets){
+        const output=renderAssetCanvas(asset);
+        await replaceAssetFromCanvas(asset,output,false);
+      }
+      renderAssets();
+      rebuildFrames();
+      cancelOverwrite();
+      refresh(true);
+      byId('resizeStatus').textContent='Loaded working cop'+(assets.length===1?'y':'ies')+' overwritten. You can keep tweaking from here.';
+    }catch(error){
+      console.error(error);
+      byId('resizeStatus').textContent='Could not overwrite the loaded working copy.';
+    }finally{
+      button.disabled=false;
+    }
+  }
+
   byId('resizeDownloadSelected').onclick=async()=>{
     const asset=assetById(bottomSelect.value)||state.assets[0];
     if(!asset)return;
@@ -278,6 +314,17 @@
       console.error(error);
       byId('resizeStatus').textContent='Export failed. Try a smaller batch.';
     }finally{button.disabled=false}
+  };
+
+  byId('resizeOverwriteSelected').onclick=()=>armOverwrite('selected');
+  byId('resizeOverwriteAll').onclick=()=>armOverwrite('all');
+  byId('resizeOverwriteCancel').onclick=cancelOverwrite;
+  byId('resizeOverwriteConfirmBtn').onclick=confirmOverwrite;
+  byId('resizeReloadOriginals').onclick=()=>{
+    cancelOverwrite();
+    reloadUploadedAssets(true);
+    refresh(true);
+    byId('resizeStatus').textContent='Uploaded originals reloaded into SpriteR.';
   };
 
   [widthInput,onlyReduce,filter].forEach(control=>control.addEventListener('input',refreshSummary));
