@@ -1,346 +1,302 @@
 (() => {
-  const A = state.align = state.align || {
-    refId: null,
-    targetId: null,
-    linked: new Set(),
-    ox: 0,
-    oy: 0,
-    sx: 1,
-    sy: 1,
-    lockAspect: true,
-    viewZoom: 1,
-    pickMode: null,
-    points: { refA:null, refB:null, targetA:null, targetB:null },
-    dragging: false,
-  };
+  const A = state.align = state.align || {};
+  Object.assign(A,{
+    refId:A.refId||null,
+    targetId:A.targetId||null,
+    linked:A.linked instanceof Set?A.linked:new Set(),
+    ox:Number.isFinite(A.ox)?A.ox:0,
+    oy:Number.isFinite(A.oy)?A.oy:0,
+    sx:Number.isFinite(A.sx)?A.sx:1,
+    sy:Number.isFinite(A.sy)?A.sy:1,
+    lockAspect:A.lockAspect!==false,
+    viewZoom:Number.isFinite(A.viewZoom)?A.viewZoom:1,
+    pickMode:A.pickMode||null,
+    points:A.points||{refA:null,refB:null,targetA:null,targetB:null},
+    touchMode:A.touchMode||'move',
+    brushColor:A.brushColor||'#ffffff',
+    brushSize:Number.isFinite(A.brushSize)?A.brushSize:8,
+    edits:A.edits instanceof Map?A.edits:new Map(),
+    history:A.history instanceof Map?A.history:new Map(),
+    overwriteIds:null
+  });
 
-  const getAsset = id => state.assets.find(a => a.id === id) || null;
-  const refAsset = () => getAsset(A.refId);
-  const targetAsset = () => getAsset(A.targetId);
-  const num = (id, fallback=0) => {
-    const v = +$(id).value;
-    return Number.isFinite(v) ? v : fallback;
-  };
+  const getAsset=id=>state.assets.find(a=>a.id===id)||null;
+  const refAsset=()=>getAsset(A.refId);
+  const targetAsset=()=>getAsset(A.targetId);
+  const num=(id,fallback=0)=>{const v=+$(id).value;return Number.isFinite(v)?v:fallback};
+  const drawable=asset=>asset?(A.edits.get(asset.id)||asset.img):null;
 
-  function setStatus(msg) {
-    const el = $('alignStatus');
-    if (el) el.textContent = msg;
-  }
+  function setStatus(msg){const el=$('alignStatus');if(el)el.textContent=msg}
 
-  function syncTransformInputs() {
-    $('alignX').value = +(A.ox.toFixed(3));
-    $('alignY').value = +(A.oy.toFixed(3));
-    $('alignScaleX').value = +(A.sx * 100).toFixed(3);
-    $('alignScaleY').value = +(A.sy * 100).toFixed(3);
-    $('alignLockAspect').checked = A.lockAspect;
+  function syncTransformInputs(){
+    $('alignX').value=+(A.ox.toFixed(3));
+    $('alignY').value=+(A.oy.toFixed(3));
+    $('alignScaleX').value=+(A.sx*100).toFixed(3);
+    $('alignScaleY').value=+(A.sy*100).toFixed(3);
+    $('alignLockAspect').checked=A.lockAspect;
     updateTransformSummary();
   }
 
-  function updateTransformSummary() {
-    const ref = refAsset(), target = targetAsset();
-    if (!ref || !target) {
-      $('alignTransformSummary').textContent = 'Choose a reference and target asset.';
-      return;
-    }
-    $('alignTransformSummary').innerHTML =
-      '<b>Reference canvas:</b> ' + ref.w + ' × ' + ref.h + 'px<br>' +
-      '<b>Target source:</b> ' + target.w + ' × ' + target.h + 'px<br>' +
-      '<b>Shift:</b> ' + A.ox.toFixed(2) + ', ' + A.oy.toFixed(2) + 'px<br>' +
-      '<b>Scale:</b> ' + (A.sx*100).toFixed(3) + '%, ' + (A.sy*100).toFixed(3) + '%';
+  function updateTransformSummary(){
+    const ref=refAsset(),target=targetAsset();
+    if(!ref||!target){$('alignTransformSummary').textContent='Choose a reference and target asset.';return}
+    $('alignTransformSummary').innerHTML=
+      '<b>Reference canvas:</b> '+ref.w+' × '+ref.h+'px<br>'+
+      '<b>Target source:</b> '+target.w+' × '+target.h+'px<br>'+
+      '<b>Shift:</b> '+A.ox.toFixed(2)+', '+A.oy.toFixed(2)+'px<br>'+
+      '<b>Scale:</b> '+(A.sx*100).toFixed(3)+'%, '+(A.sy*100).toFixed(3)+'%'+
+      (A.edits.has(target.id)?'<br><b>Touch-ups:</b> active':'');
   }
 
-  function transformFor(asset) {
-    const ref = refAsset();
-    if (!ref || !asset) return null;
-    const dw = asset.w * A.sx;
-    const dh = asset.h * A.sy;
-    return {
-      x: ref.w * .5 + A.ox - dw * .5,
-      y: ref.h * .5 + A.oy - dh * .5,
-      w: dw,
-      h: dh,
-    };
+  function transformFor(asset){
+    const ref=refAsset();
+    if(!ref||!asset)return null;
+    const dw=asset.w*A.sx,dh=asset.h*A.sy;
+    return {x:ref.w*.5+A.ox-dw*.5,y:ref.h*.5+A.oy-dh*.5,w:dw,h:dh};
   }
 
-  function sourceToCanvas(pt, asset=targetAsset()) {
-    const ref = refAsset();
-    const t = transformFor(asset);
-    if (!pt || !ref || !t) return null;
-    return { x: t.x + pt.x * A.sx, y: t.y + pt.y * A.sy };
+  function sourceToCanvas(pt,asset=targetAsset()){
+    const t=transformFor(asset);
+    if(!pt||!t)return null;
+    return {x:t.x+pt.x*A.sx,y:t.y+pt.y*A.sy};
   }
 
-  function canvasToTarget(x, y) {
-    const target = targetAsset();
-    const t = transformFor(target);
-    if (!target || !t || !A.sx || !A.sy) return null;
-    return {
-      x: (x - t.x) / A.sx,
-      y: (y - t.y) / A.sy,
-    };
+  function canvasToTarget(x,y){
+    const target=targetAsset(),t=transformFor(target);
+    if(!target||!t||!A.sx||!A.sy)return null;
+    return {x:(x-t.x)/A.sx,y:(y-t.y)/A.sy};
   }
 
-  function drawMarker(ctx, pt, color, label) {
-    if (!pt) return;
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = Math.max(1, 2 / Math.max(.25, A.viewZoom));
-    const r = 10;
-    ctx.beginPath();
-    ctx.moveTo(pt.x-r, pt.y); ctx.lineTo(pt.x+r, pt.y);
-    ctx.moveTo(pt.x, pt.y-r); ctx.lineTo(pt.x, pt.y+r);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI*2);
-    ctx.fill();
-    ctx.font = '14px ui-sans-serif,system-ui,sans-serif';
-    ctx.fillText(label, pt.x + 8, pt.y - 8);
-    ctx.restore();
+  function drawMarker(ctx,pt,color,label){
+    if(!pt)return;
+    ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;
+    ctx.lineWidth=Math.max(1,2/Math.max(.25,A.viewZoom));
+    const rr=10;
+    ctx.beginPath();ctx.moveTo(pt.x-rr,pt.y);ctx.lineTo(pt.x+rr,pt.y);ctx.moveTo(pt.x,pt.y-rr);ctx.lineTo(pt.x,pt.y+rr);ctx.stroke();
+    ctx.beginPath();ctx.arc(pt.x,pt.y,3.5,0,Math.PI*2);ctx.fill();
+    ctx.font='14px ui-sans-serif,system-ui,sans-serif';ctx.fillText(label,pt.x+8,pt.y-8);ctx.restore();
   }
 
-  function renderAlign() {
-    const c = $('alignCanvas');
-    if (!c) return;
-    const ctx = c.getContext('2d');
-    const ref = refAsset(), target = targetAsset();
+  function previewAssets(){
+    const ids=new Set([A.refId,A.targetId]);
+    if($('alignShowLinked')?.checked)for(const id of A.linked)ids.add(id);
+    return state.assets.filter(a=>ids.has(a.id));
+  }
 
-    if (!ref) {
-      c.width = 1; c.height = 1;
-      ctx.clearRect(0,0,1,1);
-      $('alignMetrics').innerHTML = '';
-      updateTransformSummary();
-      return;
+  function renderAlign(){
+    const c=$('alignCanvas');if(!c)return;
+    const ctx=c.getContext('2d'),ref=refAsset(),target=targetAsset();
+    if(!ref){
+      c.width=1;c.height=1;ctx.clearRect(0,0,1,1);$('alignMetrics').innerHTML='';updateTransformSummary();return;
     }
 
-    c.width = ref.w;
-    c.height = ref.h;
+    c.width=ref.w;c.height=ref.h;
     ctx.clearRect(0,0,c.width,c.height);
-    ctx.imageSmoothingEnabled = !$('alignPixel').checked;
+    ctx.imageSmoothingEnabled=!$('alignPixel').checked;
 
-    ctx.globalAlpha = num('alignRefOpacity', 55) / 100;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(ref.img, 0, 0);
-
-    if (target) {
-      const t = transformFor(target);
-      ctx.globalAlpha = num('alignTargetOpacity', 75) / 100;
-      ctx.globalCompositeOperation = $('alignBlend').value || 'source-over';
-      ctx.drawImage(target.img, t.x, t.y, t.w, t.h);
+    if($('alignBackgroundEnabled')?.checked){
+      ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+      ctx.fillStyle=$('alignBackgroundColor').value||'#ff00ff';ctx.fillRect(0,0,c.width,c.height);ctx.restore();
     }
 
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-
-    const p = A.points;
-    drawMarker(ctx, p.refA, '#38bdf8', 'RA');
-    drawMarker(ctx, p.refB, '#38bdf8', 'RB');
-    drawMarker(ctx, sourceToCanvas(p.targetA), '#fb7185', 'TA');
-    drawMarker(ctx, sourceToCanvas(p.targetB), '#fb7185', 'TB');
-
-    // Fixed canvas centre makes it easy to diagnose registration drift.
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,.22)';
-    ctx.setLineDash([8,8]);
-    ctx.beginPath();
-    ctx.moveTo(ref.w/2,0); ctx.lineTo(ref.w/2,ref.h);
-    ctx.moveTo(0,ref.h/2); ctx.lineTo(ref.w,ref.h/2);
-    ctx.stroke();
-    ctx.restore();
-
-    $('alignMetrics').innerHTML =
-      '<div class="metric"><b>' + ref.w + '×' + ref.h + '</b><span>output canvas</span></div>' +
-      (target ? '<div class="metric"><b>' + (A.sx*100).toFixed(2) + '%</b><span>target scale</span></div>' +
-      '<div class="metric"><b>' + A.ox.toFixed(1) + ', ' + A.oy.toFixed(1) + '</b><span>shift px</span></div>' : '');
-
-    applyAlignView();
-    updateTransformSummary();
-    updatePointInfo();
-  }
-
-  function applyAlignView() {
-    const c = $('alignCanvas');
-    if (!c) return;
-    c.style.width = Math.max(1, c.width * A.viewZoom) + 'px';
-    c.style.height = Math.max(1, c.height * A.viewZoom) + 'px';
-    $('alignZoom').value = Math.max(5, Math.min(400, A.viewZoom*100));
-    $('alignZoomLabel').textContent = Math.round(A.viewZoom*100) + '%';
-  }
-
-  function fitAlign() {
-    const ref = refAsset(), vp = $('alignViewport');
-    if (!ref || !vp) return;
-    const r = vp.getBoundingClientRect();
-    const pad = 36;
-    if (r.width < 10 || r.height < 10) return;
-    A.viewZoom = Math.max(.02, Math.min(4, (r.width-pad)/ref.w, (r.height-pad)/ref.h));
-    applyAlignView();
-  }
-
-  function syncAssetSelectors() {
-    const refSel = $('alignReference'), targetSel = $('alignTarget');
-    if (!refSel || !targetSel) return;
-
-    const prevRef = A.refId, prevTarget = A.targetId;
-    const options = state.assets.map((a,i) =>
-      '<option value="' + a.id + '">' + (i+1) + ' · ' + esc(a.name) + ' (' + a.w + '×' + a.h + ')</option>'
-    ).join('');
-
-    refSel.innerHTML = options || '<option value="">Load assets first</option>';
-    targetSel.innerHTML = options || '<option value="">Load assets first</option>';
-
-    if (state.assets.length) {
-      A.refId = state.assets.some(a=>a.id===prevRef) ? prevRef : state.assets[0].id;
-      A.targetId = state.assets.some(a=>a.id===prevTarget) ? prevTarget :
-        (state.assets[1]?.id || state.assets[0].id);
-      refSel.value = A.refId;
-      targetSel.value = A.targetId;
-    } else {
-      A.refId = A.targetId = null;
+    // Stack every active preview layer in the exact order shown in Assets.
+    for(const asset of previewAssets()){
+      const isRef=asset.id===A.refId;
+      const source=drawable(asset);
+      if(!source)continue;
+      ctx.save();
+      ctx.imageSmoothingEnabled=!$('alignPixel').checked;
+      ctx.globalAlpha=isRef?num('alignRefOpacity',55)/100:num('alignTargetOpacity',75)/100;
+      ctx.globalCompositeOperation=isRef?'source-over':($('alignBlend').value||'source-over');
+      if(isRef)ctx.drawImage(source,0,0,asset.w,asset.h);
+      else{
+        const t=transformFor(asset);
+        if(t)ctx.drawImage(source,t.x,t.y,t.w,t.h);
+      }
+      ctx.restore();
     }
-    renderLinkedList();
-    renderAlign();
+
+    const p=A.points;
+    drawMarker(ctx,p.refA,'#38bdf8','RA');
+    drawMarker(ctx,p.refB,'#38bdf8','RB');
+    drawMarker(ctx,sourceToCanvas(p.targetA),'#fb7185','TA');
+    drawMarker(ctx,sourceToCanvas(p.targetB),'#fb7185','TB');
+
+    ctx.save();ctx.strokeStyle='rgba(255,255,255,.22)';ctx.setLineDash([8,8]);ctx.beginPath();
+    ctx.moveTo(ref.w/2,0);ctx.lineTo(ref.w/2,ref.h);ctx.moveTo(0,ref.h/2);ctx.lineTo(ref.w,ref.h/2);ctx.stroke();ctx.restore();
+
+    $('alignRefOpacityLabel').textContent=$('alignRefOpacity').value+'%';
+    $('alignMetrics').innerHTML=
+      '<div class="metric"><b>'+ref.w+'×'+ref.h+'</b><span>output canvas</span></div>'+
+      (target?'<div class="metric"><b>'+(A.sx*100).toFixed(2)+'%</b><span>target scale</span></div>'+
+      '<div class="metric"><b>'+A.ox.toFixed(1)+', '+A.oy.toFixed(1)+'</b><span>shift px</span></div>':'')+
+      '<div class="metric"><b>'+previewAssets().length+'</b><span>preview layers</span></div>';
+    applyAlignView();updateTransformSummary();updatePointInfo();
   }
 
-  function renderLinkedList() {
-    const el = $('alignLinked');
-    if (!el) return;
-    if (!state.assets.length) {
-      el.innerHTML = '<div class="status">Load assets in the Assets tab first.</div>';
-      return;
-    }
-    // Primary target is always included on export. Linked targets receive the
-    // exact same transform, ideal for paint/details pairs and animation poses.
-    const valid = new Set(state.assets.map(a=>a.id));
-    A.linked = new Set([...A.linked].filter(id=>valid.has(id) && id!==A.refId && id!==A.targetId));
-    el.innerHTML = state.assets
-      .filter(a => a.id !== A.refId && a.id !== A.targetId)
-      .map(a => '<label class="align-linked-item"><input type="checkbox" value="' + a.id + '" ' +
-        (A.linked.has(a.id) ? 'checked' : '') + '> <span>' + esc(a.name) + '</span><small>' + a.w + '×' + a.h + '</small></label>')
-      .join('') || '<div class="status">No additional assets available.</div>';
+  function applyAlignView(){
+    const c=$('alignCanvas');if(!c)return;
+    c.style.width=Math.max(1,c.width*A.viewZoom)+'px';c.style.height=Math.max(1,c.height*A.viewZoom)+'px';
+    $('alignZoom').value=Math.max(5,Math.min(400,A.viewZoom*100));$('alignZoomLabel').textContent=Math.round(A.viewZoom*100)+'%';
+  }
 
-    el.querySelectorAll('input[type=checkbox]').forEach(cb => {
-      cb.onchange = () => {
-        if (cb.checked) A.linked.add(cb.value);
-        else A.linked.delete(cb.value);
-      };
+  function fitAlign(){
+    const ref=refAsset(),vp=$('alignViewport');if(!ref||!vp)return;
+    const rr=vp.getBoundingClientRect(),pad=36;if(rr.width<10||rr.height<10)return;
+    A.viewZoom=Math.max(.02,Math.min(4,(rr.width-pad)/ref.w,(rr.height-pad)/ref.h));applyAlignView();
+  }
+
+  function syncAssetSelectors(){
+    const refSel=$('alignReference'),targetSel=$('alignTarget');if(!refSel||!targetSel)return;
+    const prevRef=A.refId,prevTarget=A.targetId;
+    const options=state.assets.map((a,i)=>'<option value="'+a.id+'">'+(i+1)+' · '+esc(a.name)+' ('+a.w+'×'+a.h+')</option>').join('');
+    refSel.innerHTML=options||'<option value="">Load assets first</option>';
+    targetSel.innerHTML=options||'<option value="">Load assets first</option>';
+    if(state.assets.length){
+      A.refId=state.assets.some(a=>a.id===prevRef)?prevRef:state.assets[0].id;
+      A.targetId=state.assets.some(a=>a.id===prevTarget)?prevTarget:(state.assets[1]?.id||state.assets[0].id);
+      refSel.value=A.refId;targetSel.value=A.targetId;
+    }else A.refId=A.targetId=null;
+    renderLinkedList();renderAlign();
+  }
+
+  function renderLinkedList(){
+    const el=$('alignLinked');if(!el)return;
+    if(!state.assets.length){el.innerHTML='<div class="status">Load assets in the Assets tab first.</div>';return}
+    const valid=new Set(state.assets.map(a=>a.id));
+    A.linked=new Set([...A.linked].filter(id=>valid.has(id)&&id!==A.refId&&id!==A.targetId));
+    el.innerHTML=state.assets.filter(a=>a.id!==A.refId&&a.id!==A.targetId).map(a=>
+      '<label class="align-linked-item"><input type="checkbox" value="'+a.id+'" '+(A.linked.has(a.id)?'checked':'')+'> <span>'+esc(a.name)+'</span><small>'+a.w+'×'+a.h+'</small></label>'
+    ).join('')||'<div class="status">No additional assets available.</div>';
+    el.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>{
+      if(cb.checked)A.linked.add(cb.value);else A.linked.delete(cb.value);renderAlign();
     });
   }
 
-  function resetTransform() {
-    A.ox = 0; A.oy = 0; A.sx = 1; A.sy = 1;
-    syncTransformInputs();
-    renderAlign();
-    setStatus('Transform reset.');
+  function resetTransform(){
+    A.ox=0;A.oy=0;A.sx=1;A.sy=1;syncTransformInputs();renderAlign();setStatus('Transform reset.');
+  }
+  function nudge(dx,dy){
+    const step=Math.max(.1,num('alignNudge',1));A.ox+=dx*step;A.oy+=dy*step;syncTransformInputs();renderAlign();
   }
 
-  function nudge(dx,dy) {
-    const step = Math.max(.1, num('alignNudge',1));
-    A.ox += dx*step; A.oy += dy*step;
-    syncTransformInputs(); renderAlign();
+  function updatePointInfo(){
+    const p=A.points,fmt=q=>q?q.x.toFixed(1)+', '+q.y.toFixed(1):'—';
+    $('alignPointInfo').innerHTML='Reference A: <code>'+fmt(p.refA)+'</code><br>Reference B: <code>'+fmt(p.refB)+'</code><br>Target A: <code>'+fmt(p.targetA)+'</code><br>Target B: <code>'+fmt(p.targetB)+'</code>';
   }
-
-  function updatePointInfo() {
-    const p=A.points;
-    const fmt=q=>q ? q.x.toFixed(1)+', '+q.y.toFixed(1) : '—';
-    $('alignPointInfo').innerHTML =
-      'Reference A: <code>'+fmt(p.refA)+'</code><br>' +
-      'Reference B: <code>'+fmt(p.refB)+'</code><br>' +
-      'Target A: <code>'+fmt(p.targetA)+'</code><br>' +
-      'Target B: <code>'+fmt(p.targetB)+'</code>';
-  }
-
-  function beginPick(mode) {
-    A.pickMode = mode;
-    setStatus('Click the preview to set ' + mode.replace('ref','Reference ').replace('target','Target ') + '.');
+  function beginPick(mode){
+    A.pickMode=mode;setTouchMode('move',false);
+    setStatus('Click the preview to set '+mode.replace('ref','Reference ').replace('target','Target ')+'.');
     document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.toggle('active',b.dataset.alignPick===mode));
   }
-
-  function clearPoints() {
-    A.points={refA:null,refB:null,targetA:null,targetB:null};
-    A.pickMode=null;
-    document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.remove('active'));
-    renderAlign();
-    setStatus('Alignment points cleared.');
+  function clearPoints(){
+    A.points={refA:null,refB:null,targetA:null,targetB:null};A.pickMode=null;
+    document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.remove('active'));renderAlign();setStatus('Alignment points cleared.');
+  }
+  function matchTwoPoints(){
+    const p=A.points,ref=refAsset(),target=targetAsset();
+    if(!ref||!target||!p.refA||!p.refB||!p.targetA||!p.targetB)return setStatus('Set all four points first.');
+    const dr=Math.hypot(p.refB.x-p.refA.x,p.refB.y-p.refA.y),dt=Math.hypot(p.targetB.x-p.targetA.x,p.targetB.y-p.targetA.y);
+    if(dt<.001||dr<.001)return setStatus('The two points must be separated.');
+    const scale=dr/dt;A.sx=scale;A.sy=scale;
+    const rm={x:(p.refA.x+p.refB.x)/2,y:(p.refA.y+p.refB.y)/2},tm={x:(p.targetA.x+p.targetB.x)/2,y:(p.targetA.y+p.targetB.y)/2};
+    A.ox=rm.x-ref.w/2-(tm.x-target.w/2)*scale;A.oy=rm.y-ref.h/2-(tm.y-target.h/2)*scale;
+    syncTransformInputs();renderAlign();setStatus('Two-point match applied. Fine-tune with drag or arrow nudges.');
   }
 
-  function matchTwoPoints() {
-    const p=A.points, ref=refAsset(), target=targetAsset();
-    if (!ref || !target || !p.refA || !p.refB || !p.targetA || !p.targetB) {
-      setStatus('Set all four points first.');
-      return;
-    }
-    const dr=Math.hypot(p.refB.x-p.refA.x,p.refB.y-p.refA.y);
-    const dt=Math.hypot(p.targetB.x-p.targetA.x,p.targetB.y-p.targetA.y);
-    if (dt < .001 || dr < .001) {
-      setStatus('The two points must be separated.');
-      return;
-    }
-    const s=dr/dt;
-    A.sx=s; A.sy=s;
-
-    const rm={x:(p.refA.x+p.refB.x)/2,y:(p.refA.y+p.refB.y)/2};
-    const tm={x:(p.targetA.x+p.targetB.x)/2,y:(p.targetA.y+p.targetB.y)/2};
-    A.ox = rm.x - ref.w/2 - (tm.x-target.w/2)*s;
-    A.oy = rm.y - ref.h/2 - (tm.y-target.h/2)*s;
-    syncTransformInputs();
-    renderAlign();
-    setStatus('Two-point match applied. Fine-tune with drag or arrow nudges.');
+  // --- Touch-up editing ----------------------------------------------------
+  function ensureEditCanvas(asset){
+    if(!asset)return null;
+    let edit=A.edits.get(asset.id);
+    if(edit&&edit.width===asset.w&&edit.height===asset.h)return edit;
+    edit=document.createElement('canvas');edit.width=asset.w;edit.height=asset.h;
+    edit.getContext('2d').drawImage(asset.img,0,0,asset.w,asset.h);
+    A.edits.set(asset.id,edit);return edit;
+  }
+  function pushHistory(asset){
+    const edit=ensureEditCanvas(asset);if(!edit)return;
+    const copy=document.createElement('canvas');copy.width=edit.width;copy.height=edit.height;copy.getContext('2d').drawImage(edit,0,0);
+    const stack=A.history.get(asset.id)||[];stack.push(copy);while(stack.length>8)stack.shift();A.history.set(asset.id,stack);
+  }
+  function undoTouch(){
+    const target=targetAsset();if(!target)return;
+    const stack=A.history.get(target.id)||[],prev=stack.pop();
+    if(!prev)return setStatus('No touch-up stroke to undo.');
+    const edit=document.createElement('canvas');edit.width=prev.width;edit.height=prev.height;edit.getContext('2d').drawImage(prev,0,0);
+    A.edits.set(target.id,edit);renderAlign();setStatus('Last touch-up stroke undone.');
+  }
+  function clearTouch(){
+    const target=targetAsset();if(!target)return;
+    A.edits.delete(target.id);A.history.delete(target.id);renderAlign();setStatus('Target touch-ups discarded.');
+  }
+  function setTouchMode(mode,announce=true){
+    A.touchMode=mode;
+    document.querySelectorAll('[data-touch-tool]').forEach(b=>b.classList.toggle('active',b.dataset.touchTool===mode));
+    if(announce)setStatus(mode==='move'?'Move tool active.':mode==='picker'?'Colour picker active — tap the target artwork.':mode==='brush'?'Brush active — paint directly on the target.':'Eraser active — paint transparency onto the target.');
+  }
+  function sampleTarget(pt){
+    const target=targetAsset();if(!target||!pt)return;
+    const src=A.edits.get(target.id)||target.img;
+    const cc=document.createElement('canvas');cc.width=target.w;cc.height=target.h;const cx=cc.getContext('2d');cx.drawImage(src,0,0,target.w,target.h);
+    const x=Math.floor(pt.x),y=Math.floor(pt.y);
+    if(x<0||y<0||x>=target.w||y>=target.h)return setStatus('Tap inside the target artwork to pick a colour.');
+    const d=cx.getImageData(x,y,1,1).data;
+    if(d[3]===0)return setStatus('That pixel is transparent.');
+    const hex='#'+[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,'0')).join('');
+    A.brushColor=hex;$('alignBrushColor').value=hex;setStatus('Picked '+hex+'. Switch to Brush to paint it.');
+  }
+  function paintSegment(asset,from,to,erase=false){
+    const edit=ensureEditCanvas(asset);if(!edit||!from||!to)return;
+    const ec=edit.getContext('2d');ec.save();ec.lineCap='round';ec.lineJoin='round';ec.lineWidth=A.brushSize;
+    ec.globalCompositeOperation=erase?'destination-out':'source-over';ec.strokeStyle=A.brushColor;
+    ec.beginPath();ec.moveTo(from.x,from.y);ec.lineTo(to.x,to.y);ec.stroke();
+    if(Math.abs(from.x-to.x)<.01&&Math.abs(from.y-to.y)<.01){ec.beginPath();ec.arc(to.x,to.y,A.brushSize/2,0,Math.PI*2);erase?ec.fillStyle='rgba(0,0,0,1)':ec.fillStyle=A.brushColor;ec.fill()}
+    ec.restore();renderAlign();
   }
 
-  function outputName(asset) {
-    const suffix = $('alignSuffix').value || '';
-    const ext = extOf(asset.name);
-    const base = asset.name.slice(0,-ext.length);
-    return base + suffix + '.png';
+  // --- Export / overwrite -------------------------------------------------
+  function outputName(asset){
+    const suffix=$('alignSuffix').value||'',ext=extOf(asset.name),base=asset.name.slice(0,-ext.length);return base+suffix+'.png';
   }
-
-  function renderExport(asset) {
-    const ref=refAsset();
-    if (!ref || !asset) return null;
-    const c=document.createElement('canvas');
-    c.width=ref.w; c.height=ref.h;
-    const ctx=c.getContext('2d');
-    ctx.clearRect(0,0,c.width,c.height);
-    ctx.imageSmoothingEnabled=!$('alignPixel').checked;
-    const t=transformFor(asset);
-    ctx.drawImage(asset.img,t.x,t.y,t.w,t.h);
-    return c;
+  function renderExport(asset){
+    const ref=refAsset();if(!ref||!asset)return null;
+    const c=document.createElement('canvas');c.width=ref.w;c.height=ref.h;const ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);ctx.imageSmoothingEnabled=!$('alignPixel').checked;
+    const t=transformFor(asset),src=drawable(asset);if(t&&src)ctx.drawImage(src,t.x,t.y,t.w,t.h);return c;
   }
-
-  function exportAsset(asset, delay=0) {
-    const c=renderExport(asset);
-    if (!c) return;
+  function exportAsset(asset,delay=0){
+    const c=renderExport(asset);if(!c)return;
     setTimeout(()=>c.toBlob(blob=>blob&&downloadBlob(blob,outputName(asset)),'image/png'),delay);
   }
-
-  function exportPrimary() {
-    const t=targetAsset();
-    if (!t) return setStatus('Choose a target first.');
-    exportAsset(t);
-    setStatus('Exported target on the exact reference canvas.');
+  function exportPrimary(){const t=targetAsset();if(!t)return setStatus('Choose a target first.');exportAsset(t);setStatus('Exported target on the exact reference canvas.')}
+  function exportGroup(){
+    const ids=[A.targetId,...A.linked],assets=ids.map(getAsset).filter(Boolean);
+    if(!assets.length)return setStatus('Choose target assets first.');
+    assets.forEach((a,i)=>exportAsset(a,i*280));setStatus('Exporting '+assets.length+' aligned PNG'+(assets.length===1?'':'s')+' with one shared transform.');
   }
-
-  function exportGroup() {
-    const ids=[A.targetId,...A.linked];
-    const assets=ids.map(getAsset).filter(Boolean);
-    if (!assets.length) return setStatus('Choose target assets first.');
-    assets.forEach((a,i)=>exportAsset(a,i*280));
-    setStatus('Exporting '+assets.length+' aligned PNG'+(assets.length===1?'':'s')+' with one shared transform.');
-  }
-
-  function exportJson() {
-    const ref=refAsset(), target=targetAsset();
-    if (!ref || !target) return setStatus('Choose reference and target first.');
-    const payload={
-      app:'Sprite Workbench Canvas Align',
-      version:1,
-      reference:{name:ref.name,width:ref.w,height:ref.h},
-      target:{name:target.name,width:target.w,height:target.h},
-      transform:{offsetX:A.ox,offsetY:A.oy,scaleX:A.sx,scaleY:A.sy,origin:'canvas-centre'},
-      linked:[...A.linked].map(id=>getAsset(id)?.name).filter(Boolean),
-      points:A.points,
-    };
+  function exportJson(){
+    const ref=refAsset(),target=targetAsset();if(!ref||!target)return setStatus('Choose reference and target first.');
+    const payload={app:'SpriteR Canvas Align',version:2,reference:{name:ref.name,width:ref.w,height:ref.h},target:{name:target.name,width:target.w,height:target.h},transform:{offsetX:A.ox,offsetY:A.oy,scaleX:A.sx,scaleY:A.sy,origin:'canvas-centre'},linked:[...A.linked].map(id=>getAsset(id)?.name).filter(Boolean),points:A.points,touchUps:A.edits.has(target.id)};
     downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),strip(target.name)+'_alignment.json');
+  }
+
+  function armOverwrite(ids,label){
+    const assets=ids.map(getAsset).filter(Boolean);if(!assets.length)return setStatus('No loaded assets to overwrite.');
+    A.overwriteIds=assets.map(a=>a.id);
+    $('alignOverwriteConfirmText').textContent='Replace '+assets.length+' loaded working cop'+(assets.length===1?'y':'ies')+' with the current aligned result?';
+    $('alignOverwriteConfirm').hidden=false;setStatus(label+' — confirm below.');
+  }
+  function cancelOverwrite(){A.overwriteIds=null;$('alignOverwriteConfirm').hidden=true}
+  async function confirmOverwrite(){
+    const ids=A.overwriteIds?[...A.overwriteIds]:[];if(!ids.length)return cancelOverwrite();
+    const jobs=ids.map(id=>{const asset=getAsset(id);return asset?{asset,canvas:renderExport(asset)}:null}).filter(Boolean);
+    $('alignOverwriteConfirmBtn').disabled=true;
+    try{
+      for(const job of jobs){await replaceAssetFromCanvas(job.asset,job.canvas,false);A.edits.delete(job.asset.id);A.history.delete(job.asset.id)}
+      renderAssets();rebuildFrames();A.ox=0;A.oy=0;A.sx=1;A.sy=1;syncTransformInputs();cancelOverwrite();renderAlign();
+      setStatus('Loaded working cop'+(jobs.length===1?'y':'ies')+' overwritten. Continue with your next micro-adjustment.');
+    }catch(err){console.error(err);setStatus('Could not overwrite the loaded working copy.')}
+    finally{$('alignOverwriteConfirmBtn').disabled=false}
   }
 
   // Inputs
@@ -348,76 +304,63 @@
   $('alignTarget').onchange=()=>{A.targetId=$('alignTarget').value;A.points.targetA=A.points.targetB=null;renderLinkedList();renderAlign()};
   $('alignX').oninput=()=>{A.ox=num('alignX');renderAlign()};
   $('alignY').oninput=()=>{A.oy=num('alignY');renderAlign()};
-  $('alignScaleX').oninput=()=>{
-    A.sx=Math.max(.01,num('alignScaleX',100)/100);
-    if(A.lockAspect){A.sy=A.sx;$('alignScaleY').value=$('alignScaleX').value}
-    renderAlign();
-  };
-  $('alignScaleY').oninput=()=>{
-    A.sy=Math.max(.01,num('alignScaleY',100)/100);
-    if(A.lockAspect){A.sx=A.sy;$('alignScaleX').value=$('alignScaleY').value}
-    renderAlign();
-  };
+  $('alignScaleX').oninput=()=>{A.sx=Math.max(.01,num('alignScaleX',100)/100);if(A.lockAspect){A.sy=A.sx;$('alignScaleY').value=$('alignScaleX').value}renderAlign()};
+  $('alignScaleY').oninput=()=>{A.sy=Math.max(.01,num('alignScaleY',100)/100);if(A.lockAspect){A.sx=A.sy;$('alignScaleX').value=$('alignScaleY').value}renderAlign()};
   $('alignLockAspect').onchange=()=>{A.lockAspect=$('alignLockAspect').checked};
-  $('alignRefOpacity').oninput=renderAlign;
-  $('alignTargetOpacity').oninput=renderAlign;
-  $('alignBlend').onchange=renderAlign;
-  $('alignPixel').onchange=renderAlign;
-  $('alignReset').onclick=resetTransform;
-  $('alignCentre').onclick=()=>{A.ox=0;A.oy=0;syncTransformInputs();renderAlign()};
-  $('alignUp').onclick=()=>nudge(0,-1);
-  $('alignDown').onclick=()=>nudge(0,1);
-  $('alignLeft').onclick=()=>nudge(-1,0);
-  $('alignRight').onclick=()=>nudge(1,0);
-  $('alignMatchPoints').onclick=matchTwoPoints;
-  $('alignClearPoints').onclick=clearPoints;
-  $('alignExportPrimary').onclick=exportPrimary;
-  $('alignExportGroup').onclick=exportGroup;
-  $('alignExportJson').onclick=exportJson;
-  $('alignZoom').oninput=()=>{A.viewZoom=Math.max(.05,num('alignZoom',100)/100);applyAlignView()};
-  $('alignFit').onclick=fitAlign;
-  $('alignActual').onclick=()=>{A.viewZoom=1;applyAlignView()};
+  ['alignRefOpacity','alignTargetOpacity','alignBackgroundColor'].forEach(id=>$(id).oninput=renderAlign);
+  ['alignBlend','alignPixel','alignShowLinked','alignBackgroundEnabled'].forEach(id=>$(id).onchange=renderAlign);
+  $('alignReset').onclick=resetTransform;$('alignCentre').onclick=()=>{A.ox=0;A.oy=0;syncTransformInputs();renderAlign()};
+  $('alignUp').onclick=()=>nudge(0,-1);$('alignDown').onclick=()=>nudge(0,1);$('alignLeft').onclick=()=>nudge(-1,0);$('alignRight').onclick=()=>nudge(1,0);
+  $('alignMatchPoints').onclick=matchTwoPoints;$('alignClearPoints').onclick=clearPoints;
+  $('alignExportPrimary').onclick=exportPrimary;$('alignExportGroup').onclick=exportGroup;$('alignExportJson').onclick=exportJson;
+  $('alignZoom').oninput=()=>{A.viewZoom=Math.max(.05,num('alignZoom',100)/100);applyAlignView()};$('alignFit').onclick=fitAlign;$('alignActual').onclick=()=>{A.viewZoom=1;applyAlignView()};
   document.querySelectorAll('[data-align-pick]').forEach(b=>b.onclick=()=>beginPick(b.dataset.alignPick));
+  document.querySelectorAll('[data-touch-tool]').forEach(b=>b.onclick=()=>setTouchMode(b.dataset.touchTool));
+  $('alignBrushColor').oninput=()=>{A.brushColor=$('alignBrushColor').value};
+  $('alignBrushSize').oninput=()=>{A.brushSize=num('alignBrushSize',8);$('alignBrushSizeLabel').textContent=A.brushSize+'px'};
+  $('alignUndoTouch').onclick=undoTouch;$('alignClearTouch').onclick=clearTouch;
+  $('alignOverwritePrimary').onclick=()=>armOverwrite([A.targetId],'Overwrite target');
+  $('alignOverwriteGroup').onclick=()=>armOverwrite([A.targetId,...A.linked],'Overwrite target + linked');
+  $('alignOverwriteCancel').onclick=cancelOverwrite;$('alignOverwriteConfirmBtn').onclick=confirmOverwrite;
+  $('alignReloadOriginals').onclick=()=>{cancelOverwrite();A.edits.clear();A.history.clear();reloadUploadedAssets(true);A.ox=0;A.oy=0;A.sx=1;A.sy=1;syncTransformInputs();renderAlign();setStatus('Uploaded originals reloaded into SpriteR.')};
 
-  // Pointer drag = move target. Point-pick mode takes priority.
-  const canvas=$('alignCanvas');
-  let dragStart=null;
+  // Pointer handling: alignment, point-picking, colour picking, brush and eraser.
+  const canvas=$('alignCanvas');let dragStart=null,painting=false,lastPaint=null;
+  function canvasPoint(e){
+    const rr=canvas.getBoundingClientRect();return{x:(e.clientX-rr.left)*canvas.width/rr.width,y:(e.clientY-rr.top)*canvas.height/rr.height,rect:rr};
+  }
   canvas.addEventListener('pointerdown',e=>{
-    const ref=refAsset(), target=targetAsset();
-    if(!ref || !target)return;
-    const r=canvas.getBoundingClientRect();
-    const x=(e.clientX-r.left)*canvas.width/r.width;
-    const y=(e.clientY-r.top)*canvas.height/r.height;
-
+    const ref=refAsset(),target=targetAsset();if(!ref||!target)return;
+    const cp=canvasPoint(e),x=cp.x,y=cp.y;
     if(A.pickMode){
-      if(A.pickMode.startsWith('ref')) A.points[A.pickMode]={x,y};
-      else A.points[A.pickMode]=canvasToTarget(x,y);
-      A.pickMode=null;
-      document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.remove('active'));
-      renderAlign();
-      setStatus('Point set.');
-      return;
+      if(A.pickMode.startsWith('ref'))A.points[A.pickMode]={x,y};else A.points[A.pickMode]=canvasToTarget(x,y);
+      A.pickMode=null;document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.remove('active'));renderAlign();setStatus('Point set.');return;
     }
-
-    dragStart={clientX:e.clientX,clientY:e.clientY,ox:A.ox,oy:A.oy,rect:r};
-    canvas.setPointerCapture?.(e.pointerId);
-    e.preventDefault();
+    if(A.touchMode==='picker'){sampleTarget(canvasToTarget(x,y));return}
+    if(A.touchMode==='brush'||A.touchMode==='eraser'){
+      const pt=canvasToTarget(x,y);if(!pt||pt.x<0||pt.y<0||pt.x>target.w||pt.y>target.h)return setStatus('Paint inside the target bounds.');
+      pushHistory(target);painting=true;lastPaint=pt;paintSegment(target,pt,pt,A.touchMode==='eraser');canvas.setPointerCapture?.(e.pointerId);e.preventDefault();return;
+    }
+    dragStart={clientX:e.clientX,clientY:e.clientY,ox:A.ox,oy:A.oy,rect:cp.rect};canvas.setPointerCapture?.(e.pointerId);e.preventDefault();
   });
   canvas.addEventListener('pointermove',e=>{
+    if(painting){
+      const target=targetAsset(),cp=canvasPoint(e),pt=canvasToTarget(cp.x,cp.y);if(!target||!pt)return;
+      paintSegment(target,lastPaint,pt,A.touchMode==='eraser');lastPaint=pt;return;
+    }
     if(!dragStart)return;
     A.ox=dragStart.ox+(e.clientX-dragStart.clientX)*canvas.width/dragStart.rect.width;
     A.oy=dragStart.oy+(e.clientY-dragStart.clientY)*canvas.height/dragStart.rect.height;
     syncTransformInputs();renderAlign();
   });
-  const endDrag=()=>{dragStart=null};
-  canvas.addEventListener('pointerup',endDrag);
-  canvas.addEventListener('pointercancel',endDrag);
+  const endPointer=()=>{dragStart=null;painting=false;lastPaint=null};
+  canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
 
-  // Capture arrows before the animation tab's global left/right handler.
   window.addEventListener('keydown',e=>{
     if(!$('alignTab').classList.contains('active'))return;
     if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;
-    const step=e.shiftKey?10:(e.altKey?0.25:1);
+    if(A.touchMode!=='move')return;
+    const step=e.shiftKey?10:(e.altKey?.25:1);
     if(e.key==='ArrowLeft'){A.ox-=step;e.preventDefault();e.stopImmediatePropagation()}
     else if(e.key==='ArrowRight'){A.ox+=step;e.preventDefault();e.stopImmediatePropagation()}
     else if(e.key==='ArrowUp'){A.oy-=step;e.preventDefault();e.stopImmediatePropagation()}
@@ -426,11 +369,10 @@
     syncTransformInputs();renderAlign();
   },true);
 
-  // Existing asset management stays the source of truth.
   new MutationObserver(()=>syncAssetSelectors()).observe($('assets'),{childList:true,subtree:true});
   document.querySelector('[data-tab="alignTab"]').addEventListener('click',()=>requestAnimationFrame(()=>{renderAlign();fitAlign()}));
   window.addEventListener('resize',()=>{if($('alignTab').classList.contains('active'))fitAlign()});
 
-  syncTransformInputs();
-  syncAssetSelectors();
+  $('alignBrushColor').value=A.brushColor;$('alignBrushSize').value=A.brushSize;$('alignBrushSizeLabel').textContent=A.brushSize+'px';
+  setTouchMode(A.touchMode,false);syncTransformInputs();syncAssetSelectors();
 })();
