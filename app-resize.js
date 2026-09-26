@@ -168,15 +168,17 @@
   }
 
   function originalPngName(asset){
-    const raw=String(asset?.originalName||asset?.name||'sprite.png');
-    return /\.png$/i.test(raw)?raw:raw.replace(/\.[^.]+$/, '')+'.png';
+    return pngNameForAsset(asset);
   }
 
   function armOverwrite(mode){
     if(!state.assets.length)return;
     overwriteMode=mode;
     const count=mode==='all'?state.assets.length:1;
-    byId('resizeOverwriteConfirmText').textContent='Replace '+count+' loaded working cop'+(count===1?'y':'ies')+' with the resized result?';
+    const originals=mode==='all'?state.assets:[assetById(bottomSelect.value)||state.assets[0]];
+    byId('resizeOverwriteConfirmText').textContent=canSaveOriginalPngs(count)&&originals.every(a=>/\.png$/i.test(a.originalName||a.name))?
+      'Choose the original '+(count===1?'PNG':'folder')+' to replace '+count+' file'+(count===1?'':'s')+'. The loaded working copies will update too.':
+      'Direct replacement is unavailable here. Export '+count+' PNG'+(count===1?'':'s')+' with the original names for you to replace manually?';
     byId('resizeOverwriteConfirm').hidden=false;
     byId('resizeStatus').textContent='Confirm overwrite below.';
   }
@@ -190,18 +192,21 @@
     const button=byId('resizeOverwriteConfirmBtn');
     button.disabled=true;
     try{
-      for(const asset of assets){
-        const output=renderAssetCanvas(asset);
-        await replaceAssetFromCanvas(asset,output,false);
-      }
+      const names=assets.map(originalPngName);
+      const handles=assets.every(a=>/\.png$/i.test(a.originalName||a.name))?await chooseOriginalPngHandles(names):null;
+      const jobs=assets.map(asset=>({asset,output:renderAssetCanvas(asset)}));
+      const files=[];
+      for(let i=0;i<jobs.length;i++)files.push({name:names[i],blob:await canvasBlob(jobs[i].output)});
+      const saved=await saveOriginalPngResults(handles,files);
+      for(const job of jobs)await replaceAssetFromCanvas(job.asset,job.output,false);
       renderAssets();
       rebuildFrames();
       cancelOverwrite();
       refresh(true);
-      byId('resizeStatus').textContent='Loaded working cop'+(assets.length===1?'y':'ies')+' overwritten. You can keep tweaking from here.';
+      byId('resizeStatus').textContent=saved?'Original PNG'+(assets.length===1?'':'s')+' saved and loaded copies updated.':'PNG'+(assets.length===1?'':'s')+' downloaded. Replace the originals on your device manually; loaded copies updated.';
     }catch(error){
-      console.error(error);
-      byId('resizeStatus').textContent='Could not overwrite the loaded working copy.';
+      if(error.name==='AbortError')byId('resizeStatus').textContent='Save cancelled. Nothing changed.';
+      else{console.error(error);byId('resizeStatus').textContent=error.message||'Could not save the PNG.'}
     }finally{
       button.disabled=false;
     }

@@ -105,9 +105,9 @@
         <div class="btnrow"><button class="primary" id="alignExportPrimary">Download target PNG</button><button class="primary" id="alignExportGroup">Download target + linked</button><button id="alignExportJson">Download transform JSON</button></div>
         <div class="note">Every exported PNG is written onto the <b>exact reference canvas dimensions</b> with transparent background. The reference artwork itself is never baked into the export.</div>
         <h2 style="margin-top:16px">Iterate without re-importing</h2>
-        <div class="btnrow"><button id="alignOverwritePrimary">Overwrite loaded target</button><button id="alignOverwriteGroup">Overwrite target + linked</button><button id="alignReloadOriginals">Reload uploaded originals</button></div>
+        <div class="btnrow"><button id="alignOverwritePrimary">Save over original target</button><button id="alignOverwriteGroup">Save over original target + linked</button><button id="alignReloadOriginals">Reload uploaded originals</button></div>
         <div class="confirmbar" id="alignOverwriteConfirm" hidden><span id="alignOverwriteConfirmText"></span><div class="btnrow"><button class="danger" id="alignOverwriteConfirmBtn">Confirm overwrite</button><button id="alignOverwriteCancel">Cancel</button></div></div>
-        <div class="note">Overwrite replaces the working copy inside SpriteR so you can make another micro-adjustment immediately. Your device file is not silently changed.</div>
+        <div class="note">When supported, choose the original PNG (or its folder for a batch) and confirm the replacement in the file picker. Other browsers download PNGs with the original names; replace the files yourself. SpriteR also updates its loaded copies for the next tweak.</div>
       </div>
     </aside>
 
@@ -156,9 +156,9 @@
         <h2>Export</h2>
         <div class="btnrow"><button class="primary" id="resizeDownloadSelected">Download selected PNG</button><button class="primary" id="resizeDownloadZip">Download all as ZIP</button></div>
         <h2 style="margin-top:16px">Iterate without re-importing</h2>
-        <div class="btnrow"><button id="resizeOverwriteSelected">Overwrite loaded selected</button><button id="resizeOverwriteAll">Overwrite all loaded</button><button id="resizeReloadOriginals">Reload uploaded originals</button></div>
+        <div class="btnrow"><button id="resizeOverwriteSelected">Save over original selected</button><button id="resizeOverwriteAll">Save over all originals</button><button id="resizeReloadOriginals">Reload uploaded originals</button></div>
         <div class="confirmbar" id="resizeOverwriteConfirm" hidden><span id="resizeOverwriteConfirmText"></span><div class="btnrow"><button class="danger" id="resizeOverwriteConfirmBtn">Confirm overwrite</button><button id="resizeOverwriteCancel">Cancel</button></div></div>
-        <div class="note">Exports are transparent PNGs using the original uploaded filenames. Overwrite only replaces SpriteR's working copy; originals on your device remain untouched.</div>
+        <div class="note">When supported, choose the original PNG (or its folder for a batch) to replace it. Other browsers download PNGs for you to replace manually. The loaded copies update after export so you can keep tweaking.</div>
       </div>
 
       <div class="section">
@@ -180,9 +180,9 @@
   </div>
 </section>
 </div>
-<script src="app-core.js?v=4"></script>
+<script src="app-core.js?v=5"></script>
 <script src="app-atlas.js?v=2"></script>
-<script src="app-align.js?v=3"></script>
-<script src="app-resize.js?v=2"></script>
+<script src="app-align.js?v=4"></script>
+<script src="app-resize.js?v=3"></script>
 </body>
 </html>

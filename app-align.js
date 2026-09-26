@@ -300,7 +300,9 @@
   function armOverwrite(ids,label){
     const assets=ids.map(getAsset).filter(Boolean);if(!assets.length)return setStatus('No loaded assets to overwrite.');
     A.overwriteIds=assets.map(a=>a.id);
-    $('alignOverwriteConfirmText').textContent='Replace '+assets.length+' loaded working cop'+(assets.length===1?'y':'ies')+' with the current aligned result?';
+    $('alignOverwriteConfirmText').textContent=canSaveOriginalPngs(assets.length)&&assets.every(a=>/\.png$/i.test(a.originalName||a.name))?
+      'Choose the original '+(assets.length===1?'PNG':'folder')+' to replace '+assets.length+' file'+(assets.length===1?'':'s')+'. The loaded working copies will update too.':
+      'Direct replacement is unavailable here. Export '+assets.length+' PNG'+(assets.length===1?'':'s')+' with the original names for you to replace manually?';
     $('alignOverwriteConfirm').hidden=false;setStatus(label+' — confirm below.');
   }
   function cancelOverwrite(){A.overwriteIds=null;$('alignOverwriteConfirm').hidden=true}
@@ -309,10 +311,15 @@
     const jobs=ids.map(id=>{const asset=getAsset(id);return asset?{asset,canvas:renderExport(asset)}:null}).filter(Boolean);
     $('alignOverwriteConfirmBtn').disabled=true;
     try{
+      const names=jobs.map(job=>pngNameForAsset(job.asset));
+      const handles=jobs.every(job=>/\.png$/i.test(job.asset.originalName||job.asset.name))?await chooseOriginalPngHandles(names):null;
+      const files=[];
+      for(let i=0;i<jobs.length;i++)files.push({name:names[i],blob:await canvasBlobPng(jobs[i].canvas)});
+      const saved=await saveOriginalPngResults(handles,files);
       for(const job of jobs){await replaceAssetFromCanvas(job.asset,job.canvas,false);A.edits.delete(job.asset.id);A.history.delete(job.asset.id)}
       renderAssets();rebuildFrames();A.ox=0;A.oy=0;A.sx=1;A.sy=1;syncTransformInputs();cancelOverwrite();renderAlign();
-      setStatus('Loaded working cop'+(jobs.length===1?'y':'ies')+' overwritten. Continue with your next micro-adjustment.');
-    }catch(err){console.error(err);setStatus('Could not overwrite the loaded working copy.')}
+      setStatus(saved?'Original PNG'+(jobs.length===1?'':'s')+' saved and loaded copies updated.':'PNG'+(jobs.length===1?'':'s')+' downloaded. Replace the originals on your device manually; loaded copies updated.');
+    }catch(err){if(err.name==='AbortError')setStatus('Save cancelled. Nothing changed.');else{console.error(err);setStatus(err.message||'Could not save the PNG.')}}
     finally{$('alignOverwriteConfirmBtn').disabled=false}
   }
 

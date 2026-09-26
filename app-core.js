@@ -34,6 +34,43 @@ function downloadAsset(a){if(!a)return;fetch(a.url).then(r=>r.blob()).then(blob=
 $('downloadSelected').onclick=()=>downloadAsset(state.assets[state.selected]);$('downloadAll').onclick=()=>state.assets.forEach((a,i)=>setTimeout(()=>downloadAsset(a),i*250));
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
+// A file input supplies a read-only File, not permission to change its source.
+// Ask the user to select the original file (or folder for a batch) before rendering.
+function canSaveOriginalPngs(count){return count===1?typeof window.showSaveFilePicker==='function':typeof window.showDirectoryPicker==='function'}
+function pngNameForAsset(asset){const raw=String(asset?.originalName||asset?.name||'sprite.png');return /\.png$/i.test(raw)?raw:raw.replace(/\.[^.]+$/,'')+'.png'}
+async function chooseOriginalPngHandles(names){
+  if(!canSaveOriginalPngs(names.length))return null;
+  if(new Set(names).size!==names.length)throw new Error('Two loaded assets have the same original filename. Rename them on your device first.');
+  if(names.length===1){
+    let handle;
+    try{handle=await window.showSaveFilePicker({suggestedName:names[0],types:[{description:'PNG image',accept:{'image/png':['.png']}}]})}
+    catch(error){if(['SecurityError','NotAllowedError'].includes(error.name))return null;throw error}
+    if(handle.name!==names[0])throw new Error('Choose the original file named '+names[0]+'. No file was changed.');
+    return [handle];
+  }
+  let folder;
+  try{folder=await window.showDirectoryPicker({mode:'readwrite'})}
+  catch(error){if(['SecurityError','NotAllowedError'].includes(error.name))return null;throw error}
+  const handles=[];
+  for(const name of names){
+    try{handles.push(await folder.getFileHandle(name,{create:false}))}
+    catch(error){if(error.name==='NotFoundError')throw new Error('The selected folder is missing '+name+'. No files were changed.');throw error}
+  }
+  return handles;
+}
+async function saveOriginalPngResults(handles,files){
+  if(!handles){
+    files.forEach((file,i)=>setTimeout(()=>downloadBlob(file.blob,file.name),i*300));
+    return false; // Downloads cannot replace source files without the user's help.
+  }
+  for(let i=0;i<handles.length;i++){
+    const writable=await handles[i].createWritable();
+    try{await writable.write(files[i].blob);await writable.close()}
+    catch(error){try{await writable.abort()}catch(_){}throw error}
+  }
+  return true;
+}
+
 function canvasBlobPng(canvas){
   return new Promise((resolve,reject)=>{
     if(canvas.toBlob){canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG export failed')),'image/png');return}
