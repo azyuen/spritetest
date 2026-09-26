@@ -1,0 +1,436 @@
+(() => {
+  const A = state.align = state.align || {
+    refId: null,
+    targetId: null,
+    linked: new Set(),
+    ox: 0,
+    oy: 0,
+    sx: 1,
+    sy: 1,
+    lockAspect: true,
+    viewZoom: 1,
+    pickMode: null,
+    points: { refA:null, refB:null, targetA:null, targetB:null },
+    dragging: false,
+  };
+
+  const getAsset = id => state.assets.find(a => a.id === id) || null;
+  const refAsset = () => getAsset(A.refId);
+  const targetAsset = () => getAsset(A.targetId);
+  const num = (id, fallback=0) => {
+    const v = +$(id).value;
+    return Number.isFinite(v) ? v : fallback;
+  };
+
+  function setStatus(msg) {
+    const el = $('alignStatus');
+    if (el) el.textContent = msg;
+  }
+
+  function syncTransformInputs() {
+    $('alignX').value = +(A.ox.toFixed(3));
+    $('alignY').value = +(A.oy.toFixed(3));
+    $('alignScaleX').value = +(A.sx * 100).toFixed(3);
+    $('alignScaleY').value = +(A.sy * 100).toFixed(3);
+    $('alignLockAspect').checked = A.lockAspect;
+    updateTransformSummary();
+  }
+
+  function updateTransformSummary() {
+    const ref = refAsset(), target = targetAsset();
+    if (!ref || !target) {
+      $('alignTransformSummary').textContent = 'Choose a reference and target asset.';
+      return;
+    }
+    $('alignTransformSummary').innerHTML =
+      '<b>Reference canvas:</b> ' + ref.w + ' × ' + ref.h + 'px<br>' +
+      '<b>Target source:</b> ' + target.w + ' × ' + target.h + 'px<br>' +
+      '<b>Shift:</b> ' + A.ox.toFixed(2) + ', ' + A.oy.toFixed(2) + 'px<br>' +
+      '<b>Scale:</b> ' + (A.sx*100).toFixed(3) + '%, ' + (A.sy*100).toFixed(3) + '%';
+  }
+
+  function transformFor(asset) {
+    const ref = refAsset();
+    if (!ref || !asset) return null;
+    const dw = asset.w * A.sx;
+    const dh = asset.h * A.sy;
+    return {
+      x: ref.w * .5 + A.ox - dw * .5,
+      y: ref.h * .5 + A.oy - dh * .5,
+      w: dw,
+      h: dh,
+    };
+  }
+
+  function sourceToCanvas(pt, asset=targetAsset()) {
+    const ref = refAsset();
+    const t = transformFor(asset);
+    if (!pt || !ref || !t) return null;
+    return { x: t.x + pt.x * A.sx, y: t.y + pt.y * A.sy };
+  }
+
+  function canvasToTarget(x, y) {
+    const target = targetAsset();
+    const t = transformFor(target);
+    if (!target || !t || !A.sx || !A.sy) return null;
+    return {
+      x: (x - t.x) / A.sx,
+      y: (y - t.y) / A.sy,
+    };
+  }
+
+  function drawMarker(ctx, pt, color, label) {
+    if (!pt) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(1, 2 / Math.max(.25, A.viewZoom));
+    const r = 10;
+    ctx.beginPath();
+    ctx.moveTo(pt.x-r, pt.y); ctx.lineTo(pt.x+r, pt.y);
+    ctx.moveTo(pt.x, pt.y-r); ctx.lineTo(pt.x, pt.y+r);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.font = '14px ui-sans-serif,system-ui,sans-serif';
+    ctx.fillText(label, pt.x + 8, pt.y - 8);
+    ctx.restore();
+  }
+
+  function renderAlign() {
+    const c = $('alignCanvas');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    const ref = refAsset(), target = targetAsset();
+
+    if (!ref) {
+      c.width = 1; c.height = 1;
+      ctx.clearRect(0,0,1,1);
+      $('alignMetrics').innerHTML = '';
+      updateTransformSummary();
+      return;
+    }
+
+    c.width = ref.w;
+    c.height = ref.h;
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.imageSmoothingEnabled = !$('alignPixel').checked;
+
+    ctx.globalAlpha = num('alignRefOpacity', 55) / 100;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(ref.img, 0, 0);
+
+    if (target) {
+      const t = transformFor(target);
+      ctx.globalAlpha = num('alignTargetOpacity', 75) / 100;
+      ctx.globalCompositeOperation = $('alignBlend').value || 'source-over';
+      ctx.drawImage(target.img, t.x, t.y, t.w, t.h);
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    const p = A.points;
+    drawMarker(ctx, p.refA, '#38bdf8', 'RA');
+    drawMarker(ctx, p.refB, '#38bdf8', 'RB');
+    drawMarker(ctx, sourceToCanvas(p.targetA), '#fb7185', 'TA');
+    drawMarker(ctx, sourceToCanvas(p.targetB), '#fb7185', 'TB');
+
+    // Fixed canvas centre makes it easy to diagnose registration drift.
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.22)';
+    ctx.setLineDash([8,8]);
+    ctx.beginPath();
+    ctx.moveTo(ref.w/2,0); ctx.lineTo(ref.w/2,ref.h);
+    ctx.moveTo(0,ref.h/2); ctx.lineTo(ref.w,ref.h/2);
+    ctx.stroke();
+    ctx.restore();
+
+    $('alignMetrics').innerHTML =
+      '<div class="metric"><b>' + ref.w + '×' + ref.h + '</b><span>output canvas</span></div>' +
+      (target ? '<div class="metric"><b>' + (A.sx*100).toFixed(2) + '%</b><span>target scale</span></div>' +
+      '<div class="metric"><b>' + A.ox.toFixed(1) + ', ' + A.oy.toFixed(1) + '</b><span>shift px</span></div>' : '');
+
+    applyAlignView();
+    updateTransformSummary();
+    updatePointInfo();
+  }
+
+  function applyAlignView() {
+    const c = $('alignCanvas');
+    if (!c) return;
+    c.style.width = Math.max(1, c.width * A.viewZoom) + 'px';
+    c.style.height = Math.max(1, c.height * A.viewZoom) + 'px';
+    $('alignZoom').value = Math.max(5, Math.min(400, A.viewZoom*100));
+    $('alignZoomLabel').textContent = Math.round(A.viewZoom*100) + '%';
+  }
+
+  function fitAlign() {
+    const ref = refAsset(), vp = $('alignViewport');
+    if (!ref || !vp) return;
+    const r = vp.getBoundingClientRect();
+    const pad = 36;
+    if (r.width < 10 || r.height < 10) return;
+    A.viewZoom = Math.max(.02, Math.min(4, (r.width-pad)/ref.w, (r.height-pad)/ref.h));
+    applyAlignView();
+  }
+
+  function syncAssetSelectors() {
+    const refSel = $('alignReference'), targetSel = $('alignTarget');
+    if (!refSel || !targetSel) return;
+
+    const prevRef = A.refId, prevTarget = A.targetId;
+    const options = state.assets.map((a,i) =>
+      '<option value="' + a.id + '">' + (i+1) + ' · ' + esc(a.name) + ' (' + a.w + '×' + a.h + ')</option>'
+    ).join('');
+
+    refSel.innerHTML = options || '<option value="">Load assets first</option>';
+    targetSel.innerHTML = options || '<option value="">Load assets first</option>';
+
+    if (state.assets.length) {
+      A.refId = state.assets.some(a=>a.id===prevRef) ? prevRef : state.assets[0].id;
+      A.targetId = state.assets.some(a=>a.id===prevTarget) ? prevTarget :
+        (state.assets[1]?.id || state.assets[0].id);
+      refSel.value = A.refId;
+      targetSel.value = A.targetId;
+    } else {
+      A.refId = A.targetId = null;
+    }
+    renderLinkedList();
+    renderAlign();
+  }
+
+  function renderLinkedList() {
+    const el = $('alignLinked');
+    if (!el) return;
+    if (!state.assets.length) {
+      el.innerHTML = '<div class="status">Load assets in the Assets tab first.</div>';
+      return;
+    }
+    // Primary target is always included on export. Linked targets receive the
+    // exact same transform, ideal for paint/details pairs and animation poses.
+    const valid = new Set(state.assets.map(a=>a.id));
+    A.linked = new Set([...A.linked].filter(id=>valid.has(id) && id!==A.refId && id!==A.targetId));
+    el.innerHTML = state.assets
+      .filter(a => a.id !== A.refId && a.id !== A.targetId)
+      .map(a => '<label class="align-linked-item"><input type="checkbox" value="' + a.id + '" ' +
+        (A.linked.has(a.id) ? 'checked' : '') + '> <span>' + esc(a.name) + '</span><small>' + a.w + '×' + a.h + '</small></label>')
+      .join('') || '<div class="status">No additional assets available.</div>';
+
+    el.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.onchange = () => {
+        if (cb.checked) A.linked.add(cb.value);
+        else A.linked.delete(cb.value);
+      };
+    });
+  }
+
+  function resetTransform() {
+    A.ox = 0; A.oy = 0; A.sx = 1; A.sy = 1;
+    syncTransformInputs();
+    renderAlign();
+    setStatus('Transform reset.');
+  }
+
+  function nudge(dx,dy) {
+    const step = Math.max(.1, num('alignNudge',1));
+    A.ox += dx*step; A.oy += dy*step;
+    syncTransformInputs(); renderAlign();
+  }
+
+  function updatePointInfo() {
+    const p=A.points;
+    const fmt=q=>q ? q.x.toFixed(1)+', '+q.y.toFixed(1) : '—';
+    $('alignPointInfo').innerHTML =
+      'Reference A: <code>'+fmt(p.refA)+'</code><br>' +
+      'Reference B: <code>'+fmt(p.refB)+'</code><br>' +
+      'Target A: <code>'+fmt(p.targetA)+'</code><br>' +
+      'Target B: <code>'+fmt(p.targetB)+'</code>';
+  }
+
+  function beginPick(mode) {
+    A.pickMode = mode;
+    setStatus('Click the preview to set ' + mode.replace('ref','Reference ').replace('target','Target ') + '.');
+    document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.toggle('active',b.dataset.alignPick===mode));
+  }
+
+  function clearPoints() {
+    A.points={refA:null,refB:null,targetA:null,targetB:null};
+    A.pickMode=null;
+    document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.remove('active'));
+    renderAlign();
+    setStatus('Alignment points cleared.');
+  }
+
+  function matchTwoPoints() {
+    const p=A.points, ref=refAsset(), target=targetAsset();
+    if (!ref || !target || !p.refA || !p.refB || !p.targetA || !p.targetB) {
+      setStatus('Set all four points first.');
+      return;
+    }
+    const dr=Math.hypot(p.refB.x-p.refA.x,p.refB.y-p.refA.y);
+    const dt=Math.hypot(p.targetB.x-p.targetA.x,p.targetB.y-p.targetA.y);
+    if (dt < .001 || dr < .001) {
+      setStatus('The two points must be separated.');
+      return;
+    }
+    const s=dr/dt;
+    A.sx=s; A.sy=s;
+
+    const rm={x:(p.refA.x+p.refB.x)/2,y:(p.refA.y+p.refB.y)/2};
+    const tm={x:(p.targetA.x+p.targetB.x)/2,y:(p.targetA.y+p.targetB.y)/2};
+    A.ox = rm.x - ref.w/2 - (tm.x-target.w/2)*s;
+    A.oy = rm.y - ref.h/2 - (tm.y-target.h/2)*s;
+    syncTransformInputs();
+    renderAlign();
+    setStatus('Two-point match applied. Fine-tune with drag or arrow nudges.');
+  }
+
+  function outputName(asset) {
+    const suffix = $('alignSuffix').value || '';
+    const ext = extOf(asset.name);
+    const base = asset.name.slice(0,-ext.length);
+    return base + suffix + '.png';
+  }
+
+  function renderExport(asset) {
+    const ref=refAsset();
+    if (!ref || !asset) return null;
+    const c=document.createElement('canvas');
+    c.width=ref.w; c.height=ref.h;
+    const ctx=c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.imageSmoothingEnabled=!$('alignPixel').checked;
+    const t=transformFor(asset);
+    ctx.drawImage(asset.img,t.x,t.y,t.w,t.h);
+    return c;
+  }
+
+  function exportAsset(asset, delay=0) {
+    const c=renderExport(asset);
+    if (!c) return;
+    setTimeout(()=>c.toBlob(blob=>blob&&downloadBlob(blob,outputName(asset)),'image/png'),delay);
+  }
+
+  function exportPrimary() {
+    const t=targetAsset();
+    if (!t) return setStatus('Choose a target first.');
+    exportAsset(t);
+    setStatus('Exported target on the exact reference canvas.');
+  }
+
+  function exportGroup() {
+    const ids=[A.targetId,...A.linked];
+    const assets=ids.map(getAsset).filter(Boolean);
+    if (!assets.length) return setStatus('Choose target assets first.');
+    assets.forEach((a,i)=>exportAsset(a,i*280));
+    setStatus('Exporting '+assets.length+' aligned PNG'+(assets.length===1?'':'s')+' with one shared transform.');
+  }
+
+  function exportJson() {
+    const ref=refAsset(), target=targetAsset();
+    if (!ref || !target) return setStatus('Choose reference and target first.');
+    const payload={
+      app:'Sprite Workbench Canvas Align',
+      version:1,
+      reference:{name:ref.name,width:ref.w,height:ref.h},
+      target:{name:target.name,width:target.w,height:target.h},
+      transform:{offsetX:A.ox,offsetY:A.oy,scaleX:A.sx,scaleY:A.sy,origin:'canvas-centre'},
+      linked:[...A.linked].map(id=>getAsset(id)?.name).filter(Boolean),
+      points:A.points,
+    };
+    downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),strip(target.name)+'_alignment.json');
+  }
+
+  // Inputs
+  $('alignReference').onchange=()=>{A.refId=$('alignReference').value;A.points.refA=A.points.refB=null;renderLinkedList();renderAlign();requestAnimationFrame(fitAlign)};
+  $('alignTarget').onchange=()=>{A.targetId=$('alignTarget').value;A.points.targetA=A.points.targetB=null;renderLinkedList();renderAlign()};
+  $('alignX').oninput=()=>{A.ox=num('alignX');renderAlign()};
+  $('alignY').oninput=()=>{A.oy=num('alignY');renderAlign()};
+  $('alignScaleX').oninput=()=>{
+    A.sx=Math.max(.01,num('alignScaleX',100)/100);
+    if(A.lockAspect){A.sy=A.sx;$('alignScaleY').value=$('alignScaleX').value}
+    renderAlign();
+  };
+  $('alignScaleY').oninput=()=>{
+    A.sy=Math.max(.01,num('alignScaleY',100)/100);
+    if(A.lockAspect){A.sx=A.sy;$('alignScaleX').value=$('alignScaleY').value}
+    renderAlign();
+  };
+  $('alignLockAspect').onchange=()=>{A.lockAspect=$('alignLockAspect').checked};
+  $('alignRefOpacity').oninput=renderAlign;
+  $('alignTargetOpacity').oninput=renderAlign;
+  $('alignBlend').onchange=renderAlign;
+  $('alignPixel').onchange=renderAlign;
+  $('alignReset').onclick=resetTransform;
+  $('alignCentre').onclick=()=>{A.ox=0;A.oy=0;syncTransformInputs();renderAlign()};
+  $('alignUp').onclick=()=>nudge(0,-1);
+  $('alignDown').onclick=()=>nudge(0,1);
+  $('alignLeft').onclick=()=>nudge(-1,0);
+  $('alignRight').onclick=()=>nudge(1,0);
+  $('alignMatchPoints').onclick=matchTwoPoints;
+  $('alignClearPoints').onclick=clearPoints;
+  $('alignExportPrimary').onclick=exportPrimary;
+  $('alignExportGroup').onclick=exportGroup;
+  $('alignExportJson').onclick=exportJson;
+  $('alignZoom').oninput=()=>{A.viewZoom=Math.max(.05,num('alignZoom',100)/100);applyAlignView()};
+  $('alignFit').onclick=fitAlign;
+  $('alignActual').onclick=()=>{A.viewZoom=1;applyAlignView()};
+  document.querySelectorAll('[data-align-pick]').forEach(b=>b.onclick=()=>beginPick(b.dataset.alignPick));
+
+  // Pointer drag = move target. Point-pick mode takes priority.
+  const canvas=$('alignCanvas');
+  let dragStart=null;
+  canvas.addEventListener('pointerdown',e=>{
+    const ref=refAsset(), target=targetAsset();
+    if(!ref || !target)return;
+    const r=canvas.getBoundingClientRect();
+    const x=(e.clientX-r.left)*canvas.width/r.width;
+    const y=(e.clientY-r.top)*canvas.height/r.height;
+
+    if(A.pickMode){
+      if(A.pickMode.startsWith('ref')) A.points[A.pickMode]={x,y};
+      else A.points[A.pickMode]=canvasToTarget(x,y);
+      A.pickMode=null;
+      document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.remove('active'));
+      renderAlign();
+      setStatus('Point set.');
+      return;
+    }
+
+    dragStart={clientX:e.clientX,clientY:e.clientY,ox:A.ox,oy:A.oy,rect:r};
+    canvas.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(!dragStart)return;
+    A.ox=dragStart.ox+(e.clientX-dragStart.clientX)*canvas.width/dragStart.rect.width;
+    A.oy=dragStart.oy+(e.clientY-dragStart.clientY)*canvas.height/dragStart.rect.height;
+    syncTransformInputs();renderAlign();
+  });
+  const endDrag=()=>{dragStart=null};
+  canvas.addEventListener('pointerup',endDrag);
+  canvas.addEventListener('pointercancel',endDrag);
+
+  // Capture arrows before the animation tab's global left/right handler.
+  window.addEventListener('keydown',e=>{
+    if(!$('alignTab').classList.contains('active'))return;
+    if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;
+    const step=e.shiftKey?10:(e.altKey?.1:1);
+    if(e.key==='ArrowLeft'){A.ox-=step;e.preventDefault();e.stopImmediatePropagation()}
+    else if(e.key==='ArrowRight'){A.ox+=step;e.preventDefault();e.stopImmediatePropagation()}
+    else if(e.key==='ArrowUp'){A.oy-=step;e.preventDefault();e.stopImmediatePropagation()}
+    else if(e.key==='ArrowDown'){A.oy+=step;e.preventDefault();e.stopImmediatePropagation()}
+    else return;
+    syncTransformInputs();renderAlign();
+  },true);
+
+  // Existing asset management stays the source of truth.
+  new MutationObserver(()=>syncAssetSelectors()).observe($('assets'),{childList:true,subtree:true});
+  document.querySelector('[data-tab="alignTab"]').addEventListener('click',()=>requestAnimationFrame(()=>{renderAlign();fitAlign()}));
+  window.addEventListener('resize',()=>{if($('alignTab').classList.contains('active'))fitAlign()});
+
+  syncTransformInputs();
+  syncAssetSelectors();
+})();
