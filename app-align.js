@@ -360,7 +360,7 @@
     if(!$('alignTab').classList.contains('active'))return;
     if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;
     if(A.touchMode!=='move')return;
-    const step=e.shiftKey?10:(e.altKey?.25:1);
+    const step=e.shiftKey?10:(e.altKey?0.25:1);
     if(e.key==='ArrowLeft'){A.ox-=step;e.preventDefault();e.stopImmediatePropagation()}
     else if(e.key==='ArrowRight'){A.ox+=step;e.preventDefault();e.stopImmediatePropagation()}
     else if(e.key==='ArrowUp'){A.oy-=step;e.preventDefault();e.stopImmediatePropagation()}
