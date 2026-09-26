@@ -74,14 +74,15 @@
         <label class="check"><input id="alignBackgroundEnabled" type="checkbox"> Solid preview background</label>
         <div class="field"><label>Background colour</label><input id="alignBackgroundColor" type="color" value="#ff00ff"></div>
         <label class="check"><input id="alignPixel" type="checkbox"> Nearest-neighbour scaling</label>
-        <div class="field"><label>Preview zoom <small><span id="alignZoomLabel">100%</span></small></label><input id="alignZoom" type="range" min="5" max="400" step="1" value="100"></div>
-        <div class="btnrow"><button id="alignFit">Fit canvas</button><button id="alignActual">100%</button></div>
+        <div class="field"><label>Preview zoom <small><span id="alignZoomLabel">100%</span></small></label><input id="alignZoom" type="range" min="5" max="800" step="1" value="100"></div>
+        <div class="btnrow"><button id="alignFit">Fit canvas</button><button id="alignActual">100%</button><button id="alignResetView">Reset view</button></div>
       </div>
 
       <div class="section">
         <h2>Touch up target</h2>
         <div class="btnrow touch-tools">
           <button class="toolbtn active" data-touch-tool="move">Move</button>
+          <button class="toolbtn" data-touch-tool="hand">Pan preview</button>
           <button class="toolbtn" data-touch-tool="picker">Colour picker</button>
           <button class="toolbtn" data-touch-tool="brush">Brush</button>
           <button class="toolbtn" data-touch-tool="eraser">Eraser</button>
@@ -89,7 +90,7 @@
         <div class="field" style="margin-top:9px"><label>Brush colour</label><input id="alignBrushColor" type="color" value="#ffffff"></div>
         <div class="field"><label>Brush size <small><span id="alignBrushSizeLabel">8px</span></small></label><input id="alignBrushSize" type="range" min="1" max="80" step="1" value="8"></div>
         <div class="btnrow"><button id="alignUndoTouch">Undo stroke</button><button id="alignClearTouch">Discard target touch-ups</button></div>
-        <div class="note">Picker samples the target artwork. Brush and eraser edit only the movable target; exports include the touch-ups. Use Move to return to alignment dragging.</div>
+        <div class="note">Pan preview moves your view without shifting any sprites. On a Mac, hold Space and drag temporarily; use the scroll wheel or trackpad to zoom around the pointer. On touch, pinch to zoom and use Pan preview to drag. Picker, brush and eraser affect only the target; exports include touch-ups.</div>
       </div>
 
       <div class="section">
@@ -112,10 +113,18 @@
 
     <main class="alignmain">
       <div class="topbar"><div class="metrics" id="alignMetrics"></div><div class="status" id="alignStatus">Load two assets, then align the target.</div></div>
+      <div class="align-view-tools" aria-label="Canvas preview controls">
+        <button class="toolbtn active" data-touch-tool="move">Move target</button>
+        <button class="toolbtn" data-touch-tool="hand">Pan preview</button>
+        <button id="alignZoomOut" aria-label="Zoom out">−</button>
+        <span id="alignToolbarZoom" aria-live="polite">100%</span>
+        <button id="alignZoomIn" aria-label="Zoom in">+</button>
+        <button id="alignToolbarFit">Fit</button>
+      </div>
       <div class="alignviewwrap">
         <div class="alignviewport" id="alignViewport">
           <canvas id="alignCanvas"></canvas>
-          <div class="align-help">Drag target to move · choose Difference blend to expose mismatched edges</div>
+          <div class="align-help" id="alignHelp">Drag target to align · Pan preview to inspect without moving artwork · pinch or scroll to zoom</div>
         </div>
       </div>
     </main>
@@ -173,7 +182,7 @@
 </div>
 <script src="app-core.js?v=4"></script>
 <script src="app-atlas.js?v=2"></script>
-<script src="app-align.js?v=2"></script>
+<script src="app-align.js?v=3"></script>
 <script src="app-resize.js?v=2"></script>
 </body>
 </html>

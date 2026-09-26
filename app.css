@@ -8,10 +8,11 @@
 .aligncontrols{background:var(--panel);border-right:1px solid var(--line);padding:18px;overflow:auto}
 .alignmain{min-width:0;max-width:100%;display:flex;flex-direction:column}
 .alignviewwrap{flex:1;padding:18px;min-height:560px;max-width:100%}
-.alignviewport{position:relative;overflow:auto;border:1px solid var(--line);border-radius:14px;min-height:520px;max-width:100%;display:grid;place-items:center;background-color:#0c1118;background-image:linear-gradient(45deg,#18202b 25%,transparent 25%),linear-gradient(-45deg,#18202b 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#18202b 75%),linear-gradient(-45deg,transparent 75%,#18202b 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
-.alignviewport canvas{display:block;flex:none;max-width:none;max-height:none;touch-action:none;cursor:grab;box-shadow:0 0 0 1px #334155;background:transparent}
-.alignviewport canvas:active{cursor:grabbing}
-.align-help{position:sticky;left:12px;bottom:12px;justify-self:start;align-self:end;margin:12px;background:#090d13dd;border:1px solid #27303d;border-radius:8px;padding:7px 9px;color:#aab5c4;font-size:11px;pointer-events:none}
+.alignviewport{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;min-height:520px;max-width:100%;touch-action:none;background-color:#0c1118;background-image:linear-gradient(45deg,#18202b 25%,transparent 25%),linear-gradient(-45deg,#18202b 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#18202b 75%),linear-gradient(-45deg,transparent 75%,#18202b 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
+.alignviewport canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;max-width:none;max-height:none;touch-action:none;cursor:grab;box-shadow:0 0 0 1px #334155;background:transparent}
+.alignviewport.pan-mode,.alignviewport.pan-mode canvas{cursor:grab}.alignviewport.pan-mode:active,.alignviewport.pan-mode canvas:active{cursor:grabbing}.alignviewport.paint-mode canvas{cursor:crosshair}
+.align-help{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 24px);background:#090d13dd;border:1px solid #27303d;border-radius:8px;padding:7px 9px;color:#aab5c4;font-size:11px;pointer-events:none}
+.align-view-tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 14px;background:var(--panel3);border-bottom:1px solid var(--line)}.align-view-tools button{padding:6px 9px}.align-view-tools #alignToolbarZoom{min-width:45px;text-align:center;color:#cbd5e1;font-size:12px}
 .align-nudge{display:grid;grid-template-columns:44px 44px 44px;gap:6px;width:max-content;margin:4px auto 8px}
 .align-nudge button{width:44px;height:40px;padding:0;font-size:18px}
 .align-point-buttons button.active{background:#4b1730;border-color:#fb7185;color:#fff}
