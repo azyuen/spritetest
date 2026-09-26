@@ -19,7 +19,7 @@ for(const btn of document.querySelectorAll('.tabbtn'))btn.onclick=()=>switchTab(
 function switchTab(id){document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active',p.id===id));if(id==='designTab')requestAnimationFrame(()=>fitPreview(false));if(id==='atlasTab'&&state.atlas)requestAnimationFrame(()=>fitAtlas(false))}
 
 const drop=$('drop'),fileInput=$('files');drop.onclick=()=>fileInput.click();drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};drop.ondragleave=()=>drop.classList.remove('drag');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');loadFiles([...e.dataTransfer.files])};fileInput.onchange=e=>loadFiles([...e.target.files]);
-function loadFiles(files){const valid=files.filter(f=>f.type.startsWith('image/'));if(!valid.length)return;let pending=valid.length;status(`Loading ${valid.length} asset${valid.length===1?'':'s'}…`);for(const file of valid){const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{state.assets.push({file,url,img,originalName:file.name,name:file.name,w:img.naturalWidth,h:img.naturalHeight,id:crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)});pending--;if(pending===0){if(state.assets.length===valid.length){$('fw').value=state.assets[0].w;$('fh').value=state.assets[0].h}renderAssets();rebuildFrames();ensureDefaults(false);status(`${state.assets.length} asset${state.assets.length===1?'':'s'} ready`)}};img.src=url}}
+function loadFiles(files){const valid=files.filter(f=>f.type.startsWith('image/'));if(!valid.length)return;let pending=valid.length;status(`Loading ${valid.length} asset${valid.length===1?'':'s'}…`);for(const file of valid){const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{state.assets.push({file,url,img,originalName:file.name,name:file.name,w:img.naturalWidth,h:img.naturalHeight,id:crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2),uploaded:{file,url,img,w:img.naturalWidth,h:img.naturalHeight}});pending--;if(pending===0){if(state.assets.length===valid.length){$('fw').value=state.assets[0].w;$('fh').value=state.assets[0].h}renderAssets();rebuildFrames();ensureDefaults(false);status(`${state.assets.length} asset${state.assets.length===1?'':'s'} ready`)}};img.src=url}}
 
 function selectAsset(i){state.selected=clamp(i,0,Math.max(0,state.assets.length-1));renderAssets();if($('mode').value==='sheet'){const a=state.assets[state.selected];if(a){$('fw').value=Math.min(+$('fw').value||a.w,a.w);$('fh').value=Math.min(+$('fh').value||a.h,a.h)}}rebuildFrames()}
 function deleteAsset(i){if(i<0||i>=state.assets.length)return;const [a]=state.assets.splice(i,1);if(a&&!state.assets.some(x=>x.url===a.url))URL.revokeObjectURL(a.url);state.selected=clamp(state.selected,0,Math.max(0,state.assets.length-1));renderAssets();rebuildFrames()}
@@ -33,6 +33,42 @@ $('restoreNames').onclick=()=>{state.assets.forEach(a=>a.name=a.originalName);re
 function downloadAsset(a){if(!a)return;fetch(a.url).then(r=>r.blob()).then(blob=>downloadBlob(blob,a.name))}
 $('downloadSelected').onclick=()=>downloadAsset(state.assets[state.selected]);$('downloadAll').onclick=()=>state.assets.forEach((a,i)=>setTimeout(()=>downloadAsset(a),i*250));
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+function canvasBlobPng(canvas){
+  return new Promise((resolve,reject)=>{
+    if(canvas.toBlob){canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG export failed')),'image/png');return}
+    try{
+      const raw=atob(canvas.toDataURL('image/png').split(',')[1]),bytes=new Uint8Array(raw.length);
+      for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+      resolve(new Blob([bytes],{type:'image/png'}));
+    }catch(err){reject(err)}
+  });
+}
+function imageFromUrl(url){
+  return new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=url});
+}
+async function replaceAssetFromCanvas(asset,canvas,refresh=true){
+  if(!asset||!canvas)return false;
+  if(!asset.uploaded)asset.uploaded={file:asset.file,url:asset.url,img:asset.img,w:asset.w,h:asset.h};
+  const blob=await canvasBlobPng(canvas),url=URL.createObjectURL(blob),img=await imageFromUrl(url);
+  if(asset.url&&asset.url!==asset.uploaded.url&&asset.url!==url)URL.revokeObjectURL(asset.url);
+  asset.url=url;asset.img=img;asset.w=canvas.width;asset.h=canvas.height;
+  try{asset.file=new File([blob],asset.originalName||asset.name||'sprite.png',{type:'image/png'})}catch(_){asset.file=blob}
+  if(refresh){renderAssets();rebuildFrames()}
+  return true;
+}
+function reloadUploadedAssets(refresh=true){
+  let count=0;
+  state.assets.forEach(asset=>{
+    const u=asset.uploaded;
+    if(!u)return;
+    if(asset.url&&asset.url!==u.url)URL.revokeObjectURL(asset.url);
+    asset.file=u.file;asset.url=u.url;asset.img=u.img;asset.w=u.w;asset.h=u.h;count++;
+  });
+  if(refresh){renderAssets();rebuildFrames()}
+  status(count?'Reloaded the uploaded source assets.':'Nothing to reload yet.');
+  return count;
+}
 
 ['fw','fh','margin','spacing'].forEach(id=>$(id).addEventListener('input',rebuildFrames));
 $('mode').onchange=()=>{$('sheetControls').style.display=$('mode').value==='sheet'?'block':'none';rebuildFrames()};
