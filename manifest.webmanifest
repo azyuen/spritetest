@@ -10,7 +10,7 @@
   "theme_color": "#0d1017",
   "icons": [
     {
-      "src": "spriter-icon.png?v=3",
+      "src": "spriter-icon-v4.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
