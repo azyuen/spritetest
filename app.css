@@ -75,3 +75,9 @@
 .confirmbar{margin-top:10px;padding:10px;border:1px solid #7f1d1d;border-radius:9px;background:#2a1117;display:grid;gap:8px;font-size:12px}
 .confirmbar[hidden]{display:none}
 .touch-tools .toolbtn{min-width:72px}
+
+
+/* Tokyo SHIFT car alignment workflow */
+.tokyo-shift-panel{padding:12px;border:1px solid #2f6682;border-radius:12px;background:linear-gradient(180deg,#10202c,#10151e)}
+.tokyo-shift-panel h2{color:#7dd3fc}
+.tokyo-shift-panel button.active{background:#3a2c12;border-color:#fbbf24;color:#fff}
