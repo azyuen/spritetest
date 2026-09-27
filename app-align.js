@@ -19,7 +19,11 @@
     brushSize:Number.isFinite(A.brushSize)?A.brushSize:8,
     edits:A.edits instanceof Map?A.edits:new Map(),
     history:A.history instanceof Map?A.history:new Map(),
-    overwriteIds:null
+    overwriteIds:null,
+    tsWheelMode:A.tsWheelMode||null,
+    tsRear:A.tsRear||null,
+    tsFront:A.tsFront||null,
+    tsMaster:A.tsMaster||null
   });
 
   const getAsset=id=>state.assets.find(a=>a.id===id)||null;
@@ -127,6 +131,22 @@
     ctx.save();ctx.strokeStyle='rgba(255,255,255,.22)';ctx.setLineDash([8,8]);ctx.beginPath();
     ctx.moveTo(ref.w/2,0);ctx.lineTo(ref.w/2,ref.h);ctx.moveTo(0,ref.h/2);ctx.lineTo(ref.w,ref.h/2);ctx.stroke();ctx.restore();
 
+    if($('tsShowFloor')?.checked){
+      const fy=num('tsFloorY',482);
+      ctx.save();ctx.strokeStyle='rgba(134,239,172,.85)';ctx.lineWidth=2;ctx.setLineDash([12,7]);
+      ctx.beginPath();ctx.moveTo(0,fy);ctx.lineTo(ref.w,fy);ctx.stroke();
+      ctx.fillStyle='#86efac';ctx.font='12px ui-sans-serif,system-ui,sans-serif';ctx.fillText('TOKYO SHIFT FLOOR',10,fy-8);ctx.restore();
+    }
+    const drawWheelGuide=(wheel,label,color)=>{
+      if(!wheel)return;
+      ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=2;ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(wheel.x,wheel.y,wheel.r,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(wheel.x-8,wheel.y);ctx.lineTo(wheel.x+8,wheel.y);ctx.moveTo(wheel.x,wheel.y-8);ctx.lineTo(wheel.x,wheel.y+8);ctx.stroke();
+      ctx.font='12px ui-sans-serif,system-ui,sans-serif';ctx.fillText(label+' r'+Math.round(wheel.r),wheel.x+wheel.r+6,wheel.y);ctx.restore();
+    };
+    drawWheelGuide(A.tsRear,'REAR','#fbbf24');
+    drawWheelGuide(A.tsFront,'FRONT','#c084fc');
+
     $('alignRefOpacityLabel').textContent=$('alignRefOpacity').value+'%';
     $('alignMetrics').innerHTML=
       '<div class="metric"><b>'+ref.w+'×'+ref.h+'</b><span>output canvas</span></div>'+
@@ -216,6 +236,69 @@
     const rm={x:(p.refA.x+p.refB.x)/2,y:(p.refA.y+p.refB.y)/2},tm={x:(p.targetA.x+p.targetB.x)/2,y:(p.targetA.y+p.targetB.y)/2};
     A.ox=rm.x-ref.w/2-(tm.x-target.w/2)*scale;A.oy=rm.y-ref.h/2-(tm.y-target.h/2)*scale;
     syncTransformInputs();renderAlign();setStatus('Two-point match applied. Fine-tune with drag or arrow nudges.');
+  }
+
+  // --- Tokyo SHIFT car workflow --------------------------------------------
+  function alphaBounds(asset){
+    if(!asset)return null;
+    const src=drawable(asset),cc=document.createElement('canvas');cc.width=asset.w;cc.height=asset.h;
+    const cx=cc.getContext('2d',{willReadFrequently:true});cx.drawImage(src,0,0,asset.w,asset.h);
+    const data=cx.getImageData(0,0,asset.w,asset.h).data;
+    let minX=asset.w,minY=asset.h,maxX=-1,maxY=-1;
+    for(let y=0;y<asset.h;y++)for(let x=0;x<asset.w;x++){
+      if(data[(y*asset.w+x)*4+3]>12){if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y}
+    }
+    return maxX<0?null:{minX,minY,maxX,maxY,w:maxX-minX+1,h:maxY-minY+1};
+  }
+  function tsAutoAlign(){
+    const ref=refAsset(),target=targetAsset();if(!ref||!target)return setStatus('Choose an AE86/reference asset and a stock target first.');
+    const rb=alphaBounds(ref),tb=alphaBounds(target);if(!rb||!tb)return setStatus('Could not detect visible artwork bounds.');
+    const scale=rb.w/tb.w;
+    A.sx=A.sy=scale;
+    const refCx=(rb.minX+rb.maxX)/2, targetCx=(tb.minX+tb.maxX)/2;
+    A.ox=refCx-ref.w/2-(targetCx-target.w/2)*scale;
+    A.oy=rb.maxY-ref.h/2-(tb.maxY-target.h/2)*scale;
+    A.tsMaster={reference:ref.name,target:target.name};
+    syncTransformInputs();renderAlign();setStatus('Tokyo SHIFT stock auto-aligned by visible width + floor. Fine-tune once, then use current as master.');
+  }
+  function tsUseCurrent(){
+    const ref=refAsset(),target=targetAsset();if(!ref||!target)return setStatus('Choose reference and stock target first.');
+    A.tsMaster={reference:ref.name,target:target.name,offsetX:A.ox,offsetY:A.oy,scaleX:A.sx,scaleY:A.sy};
+    setStatus('Current stock transform saved as the Tokyo SHIFT master. Linked variants will export with it.');
+    updateTsSummary();
+  }
+  function updateTsSummary(){
+    const fmt=w=>w?'X '+w.x.toFixed(1)+' · Y '+w.y.toFixed(1)+' · R '+w.r.toFixed(1):'—';
+    const el=$('tsGeometrySummary');if(!el)return;
+    el.innerHTML='<b>Rear:</b> '+fmt(A.tsRear)+'<br><b>Front:</b> '+fmt(A.tsFront)+'<br><b>Body:</b> '+(A.tsMaster?'master locked':'use current as master when body alignment is final');
+  }
+  function tsWheelPick(which){
+    A.tsWheelMode=which;
+    setTouchMode('move',false);
+    setStatus('Tap the '+which+' wheel centre on the aligned car.');
+    $('tsRearWheel').classList.toggle('active',which==='rear');
+    $('tsFrontWheel').classList.toggle('active',which==='front');
+  }
+  function tsClearWheels(){
+    A.tsRear=A.tsFront=null;A.tsWheelMode=null;
+    $('tsRearWheel').classList.remove('active');$('tsFrontWheel').classList.remove('active');
+    updateTsSummary();renderAlign();setStatus('Tokyo SHIFT wheel guides cleared.');
+  }
+  function tsExportPack(){
+    const ref=refAsset(),target=targetAsset();if(!ref||!target)return setStatus('Choose reference and target first.');
+    if(!A.tsRear||!A.tsFront)return setStatus('Set both wheel centres first.');
+    const payload={
+      app:'SpriteR',format:'Tokyo SHIFT Car Geometry',version:1,
+      reference:{name:ref.name,width:ref.w,height:ref.h},
+      target:{name:target.name,sourceWidth:target.w,sourceHeight:target.h},
+      canvas:{width:num('tsCanvasW',ref.w),height:num('tsCanvasH',ref.h),floorY:num('tsFloorY',482)},
+      bodyTransform:{offsetX:A.ox,offsetY:A.oy,scaleX:A.sx,scaleY:A.sy,origin:'canvas-centre'},
+      wheels:{rear:{...A.tsRear},front:{...A.tsFront}},
+      linkedVariants:[...A.linked].map(id=>getAsset(id)?.name).filter(Boolean),
+      rule:'All linked stock/bodykit paint+body layers inherit this exact body transform. Wheels remain independently calibrated.'
+    };
+    downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),strip(target.name)+'_tokyoshift_geometry.json');
+    setStatus('Tokyo SHIFT geometry exported. This is the car calibration record for the game.');
   }
 
   // --- Touch-up editing ----------------------------------------------------
@@ -324,6 +407,21 @@
   }
 
   // Inputs
+  $('tsAutoCanvas').onclick=tsAutoAlign;
+  $('tsUseCurrent').onclick=tsUseCurrent;
+  $('tsRearWheel').onclick=()=>tsWheelPick('rear');
+  $('tsFrontWheel').onclick=()=>tsWheelPick('front');
+  $('tsClearWheels').onclick=tsClearWheels;
+  $('tsExportPack').onclick=tsExportPack;
+  $('tsShowFloor').onchange=renderAlign;
+  $('tsFloorY').oninput=renderAlign;
+  $('tsWheelRadius').oninput=()=>{
+    const r=num('tsWheelRadius',92);$('tsWheelRadiusLabel').textContent=Math.round(r)+'px';
+    if(A.tsWheelMode==='rear'&&A.tsRear)A.tsRear.r=r;
+    if(A.tsWheelMode==='front'&&A.tsFront)A.tsFront.r=r;
+    updateTsSummary();renderAlign();
+  };
+
   $('alignReference').onchange=()=>{A.refId=$('alignReference').value;A.points.refA=A.points.refB=null;renderLinkedList();renderAlign();requestAnimationFrame(fitAlign)};
   $('alignTarget').onchange=()=>{A.targetId=$('alignTarget').value;A.points.targetA=A.points.targetB=null;renderLinkedList();renderAlign()};
   $('alignX').oninput=()=>{A.ox=num('alignX');renderAlign()};
@@ -377,6 +475,13 @@
     if(panning){dragStart={kind:'pan',clientX:e.clientX,clientY:e.clientY,x:A.viewX,y:A.viewY};e.preventDefault();return}
     const target=targetAsset();if(!target||!insideCanvas(e))return;
     const cp=canvasPoint(e),x=cp.x,y=cp.y;
+    if(A.tsWheelMode){
+      const wheel={x,y,r:num('tsWheelRadius',92)};
+      if(A.tsWheelMode==='rear')A.tsRear=wheel;else A.tsFront=wheel;
+      const chosen=A.tsWheelMode;A.tsWheelMode=null;
+      $('tsRearWheel').classList.remove('active');$('tsFrontWheel').classList.remove('active');
+      updateTsSummary();renderAlign();setStatus((chosen==='rear'?'Rear':'Front')+' wheel centre set. Adjust radius slider if needed.');return;
+    }
     if(A.pickMode){
       if(A.pickMode.startsWith('ref'))A.points[A.pickMode]={x,y};else A.points[A.pickMode]=canvasToTarget(x,y);
       A.pickMode=null;document.querySelectorAll('[data-align-pick]').forEach(b=>b.classList.remove('active'));renderAlign();setStatus('Point set.');return;
@@ -441,5 +546,5 @@
   });
 
   $('alignBrushColor').value=A.brushColor;$('alignBrushSize').value=A.brushSize;$('alignBrushSizeLabel').textContent=A.brushSize+'px';
-  setTouchMode(A.touchMode,false);syncTransformInputs();syncAssetSelectors();
+  setTouchMode(A.touchMode,false);syncTransformInputs();syncAssetSelectors();updateTsSummary();
 })();
