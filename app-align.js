@@ -335,6 +335,7 @@
   ['alignBlend','alignPixel','alignShowLinked','alignBackgroundEnabled'].forEach(id=>$(id).onchange=renderAlign);
   $('alignReset').onclick=resetTransform;$('alignCentre').onclick=()=>{A.ox=0;A.oy=0;syncTransformInputs();renderAlign()};
   $('alignUp').onclick=()=>nudge(0,-1);$('alignDown').onclick=()=>nudge(0,1);$('alignLeft').onclick=()=>nudge(-1,0);$('alignRight').onclick=()=>nudge(1,0);
+  $('alignQuickUp').onclick=()=>nudge(0,-1);$('alignQuickDown').onclick=()=>nudge(0,1);$('alignQuickLeft').onclick=()=>nudge(-1,0);$('alignQuickRight').onclick=()=>nudge(1,0);
   $('alignMatchPoints').onclick=matchTwoPoints;$('alignClearPoints').onclick=clearPoints;
   $('alignExportPrimary').onclick=exportPrimary;$('alignExportGroup').onclick=exportGroup;$('alignExportJson').onclick=exportJson;
   $('alignZoom').oninput=()=>{const r=$('alignViewport').getBoundingClientRect();zoomAt(num('alignZoom',100)/100,r.left+r.width/2,r.top+r.height/2)};
@@ -432,7 +433,12 @@
 
   new MutationObserver(()=>syncAssetSelectors()).observe($('assets'),{childList:true,subtree:true});
   document.querySelector('[data-tab="alignTab"]').addEventListener('click',()=>requestAnimationFrame(()=>{renderAlign();fitAlign()}));
-  window.addEventListener('resize',()=>{if($('alignTab').classList.contains('active'))fitAlign()});
+  let lastWindowWidth=window.innerWidth;
+  window.addEventListener('resize',()=>{
+    const widthChanged=Math.abs(window.innerWidth-lastWindowWidth)>24;
+    lastWindowWidth=window.innerWidth;
+    if(widthChanged&&$('alignTab').classList.contains('active'))requestAnimationFrame(fitAlign);
+  });
 
   $('alignBrushColor').value=A.brushColor;$('alignBrushSize').value=A.brushSize;$('alignBrushSizeLabel').textContent=A.brushSize+'px';
   setTouchMode(A.touchMode,false);syncTransformInputs();syncAssetSelectors();

@@ -15,8 +15,13 @@ function currentFrame(){return state.frames[state.frame]||null}
 function currentMeta(){const f=currentFrame();return f?frameMeta(f.key):{ox:0,oy:0}}
 function syncOffsetInputs(){const m=currentMeta();$('offsetX').value=m.ox||0;$('offsetY').value=m.oy||0}
 
+const appHead=document.querySelector('.apphead');
+function syncAppHeadHeight(){document.documentElement.style.setProperty('--spriter-head-height',Math.ceil(appHead.getBoundingClientRect().height)+'px')}
+syncAppHeadHeight();
+if(window.ResizeObserver)new ResizeObserver(syncAppHeadHeight).observe(appHead);
+else window.addEventListener('resize',syncAppHeadHeight);
 for(const btn of document.querySelectorAll('.tabbtn'))btn.onclick=()=>switchTab(btn.dataset.tab);
-function switchTab(id){document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active',p.id===id));if(id==='designTab')requestAnimationFrame(()=>fitPreview(false));if(id==='atlasTab'&&state.atlas)requestAnimationFrame(()=>fitAtlas(false))}
+function switchTab(id){document.querySelector('.app').classList.toggle('align-mode',id==='alignTab');document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active',p.id===id));requestAnimationFrame(syncAppHeadHeight);if(id==='designTab')requestAnimationFrame(()=>fitPreview(false));if(id==='atlasTab'&&state.atlas)requestAnimationFrame(()=>fitAtlas(false))}
 
 const drop=$('drop'),fileInput=$('files');drop.onclick=()=>fileInput.click();drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};drop.ondragleave=()=>drop.classList.remove('drag');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');loadFiles([...e.dataTransfer.files])};fileInput.onchange=e=>loadFiles([...e.target.files]);
 function loadFiles(files){const valid=files.filter(f=>f.type.startsWith('image/'));if(!valid.length)return;let pending=valid.length;status(`Loading ${valid.length} asset${valid.length===1?'':'s'}…`);for(const file of valid){const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{state.assets.push({file,url,img,originalName:file.name,name:file.name,w:img.naturalWidth,h:img.naturalHeight,id:crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2),uploaded:{file,url,img,w:img.naturalWidth,h:img.naturalHeight}});pending--;if(pending===0){if(state.assets.length===valid.length){$('fw').value=state.assets[0].w;$('fh').value=state.assets[0].h}renderAssets();rebuildFrames();ensureDefaults(false);status(`${state.assets.length} asset${state.assets.length===1?'':'s'} ready`)}};img.src=url}}

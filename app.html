@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1" />
 <title>SpriteR</title>
-<link rel="stylesheet" href="app.css?v=4" />
+<link rel="stylesheet" href="app.css?v=5" />
 </head>
 <body>
 <div class="app">
@@ -114,12 +114,25 @@
     <main class="alignmain">
       <div class="topbar"><div class="metrics" id="alignMetrics"></div><div class="status" id="alignStatus">Load two assets, then align the target.</div></div>
       <div class="align-view-tools" aria-label="Canvas preview controls">
-        <button class="toolbtn active" data-touch-tool="move">Move target</button>
-        <button class="toolbtn" data-touch-tool="hand">Pan preview</button>
-        <button id="alignZoomOut" aria-label="Zoom out">−</button>
-        <span id="alignToolbarZoom" aria-live="polite">100%</span>
-        <button id="alignZoomIn" aria-label="Zoom in">+</button>
-        <button id="alignToolbarFit">Fit</button>
+        <div class="align-tool-modes">
+          <button class="toolbtn active" data-touch-tool="move">Move</button>
+          <button class="toolbtn" data-touch-tool="hand">Pan</button>
+          <button class="toolbtn" data-touch-tool="picker">Picker</button>
+          <button class="toolbtn" data-touch-tool="brush">Brush</button>
+          <button class="toolbtn" data-touch-tool="eraser">Eraser</button>
+        </div>
+        <div class="align-tool-nav">
+          <span class="align-tool-label">Nudge</span>
+          <button id="alignQuickLeft" aria-label="Nudge target left">←</button>
+          <button id="alignQuickUp" aria-label="Nudge target up">↑</button>
+          <button id="alignQuickDown" aria-label="Nudge target down">↓</button>
+          <button id="alignQuickRight" aria-label="Nudge target right">→</button>
+          <span class="align-tool-divider" aria-hidden="true"></span>
+          <button id="alignZoomOut" aria-label="Zoom out">−</button>
+          <span id="alignToolbarZoom" aria-live="polite">100%</span>
+          <button id="alignZoomIn" aria-label="Zoom in">+</button>
+          <button id="alignToolbarFit">Fit</button>
+        </div>
       </div>
       <div class="alignviewwrap">
         <div class="alignviewport" id="alignViewport">
@@ -180,9 +193,9 @@
   </div>
 </section>
 </div>
-<script src="app-core.js?v=5"></script>
+<script src="app-core.js?v=6"></script>
 <script src="app-atlas.js?v=2"></script>
-<script src="app-align.js?v=4"></script>
+<script src="app-align.js?v=5"></script>
 <script src="app-resize.js?v=3"></script>
 </body>
 </html>
