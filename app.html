@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1" />
 <title>SpriteR</title>
-<link rel="stylesheet" href="app.css?v=4" />
+<link rel="stylesheet" href="app.css?v=5" />
 </head>
 <body>
 <div class="app">
@@ -74,14 +74,15 @@
         <label class="check"><input id="alignBackgroundEnabled" type="checkbox"> Solid preview background</label>
         <div class="field"><label>Background colour</label><input id="alignBackgroundColor" type="color" value="#ff00ff"></div>
         <label class="check"><input id="alignPixel" type="checkbox"> Nearest-neighbour scaling</label>
-        <div class="field"><label>Preview zoom <small><span id="alignZoomLabel">100%</span></small></label><input id="alignZoom" type="range" min="5" max="400" step="1" value="100"></div>
-        <div class="btnrow"><button id="alignFit">Fit canvas</button><button id="alignActual">100%</button></div>
+        <div class="field"><label>Preview zoom <small><span id="alignZoomLabel">100%</span></small></label><input id="alignZoom" type="range" min="5" max="800" step="1" value="100"></div>
+        <div class="btnrow"><button id="alignFit">Fit canvas</button><button id="alignActual">100%</button><button id="alignResetView">Reset view</button></div>
       </div>
 
       <div class="section">
         <h2>Touch up target</h2>
         <div class="btnrow touch-tools">
           <button class="toolbtn active" data-touch-tool="move">Move</button>
+          <button class="toolbtn" data-touch-tool="hand">Pan preview</button>
           <button class="toolbtn" data-touch-tool="picker">Colour picker</button>
           <button class="toolbtn" data-touch-tool="brush">Brush</button>
           <button class="toolbtn" data-touch-tool="eraser">Eraser</button>
@@ -89,7 +90,7 @@
         <div class="field" style="margin-top:9px"><label>Brush colour</label><input id="alignBrushColor" type="color" value="#ffffff"></div>
         <div class="field"><label>Brush size <small><span id="alignBrushSizeLabel">8px</span></small></label><input id="alignBrushSize" type="range" min="1" max="80" step="1" value="8"></div>
         <div class="btnrow"><button id="alignUndoTouch">Undo stroke</button><button id="alignClearTouch">Discard target touch-ups</button></div>
-        <div class="note">Picker samples the target artwork. Brush and eraser edit only the movable target; exports include the touch-ups. Use Move to return to alignment dragging.</div>
+        <div class="note">Pan preview moves your view without shifting any sprites. On a Mac, hold Space and drag temporarily; use the scroll wheel or trackpad to zoom around the pointer. On touch, pinch to zoom and use Pan preview to drag. Picker, brush and eraser affect only the target; exports include touch-ups.</div>
       </div>
 
       <div class="section">
@@ -104,18 +105,39 @@
         <div class="btnrow"><button class="primary" id="alignExportPrimary">Download target PNG</button><button class="primary" id="alignExportGroup">Download target + linked</button><button id="alignExportJson">Download transform JSON</button></div>
         <div class="note">Every exported PNG is written onto the <b>exact reference canvas dimensions</b> with transparent background. The reference artwork itself is never baked into the export.</div>
         <h2 style="margin-top:16px">Iterate without re-importing</h2>
-        <div class="btnrow"><button id="alignOverwritePrimary">Overwrite loaded target</button><button id="alignOverwriteGroup">Overwrite target + linked</button><button id="alignReloadOriginals">Reload uploaded originals</button></div>
+        <div class="btnrow"><button id="alignOverwritePrimary">Save over original target</button><button id="alignOverwriteGroup">Save over original target + linked</button><button id="alignReloadOriginals">Reload uploaded originals</button></div>
         <div class="confirmbar" id="alignOverwriteConfirm" hidden><span id="alignOverwriteConfirmText"></span><div class="btnrow"><button class="danger" id="alignOverwriteConfirmBtn">Confirm overwrite</button><button id="alignOverwriteCancel">Cancel</button></div></div>
-        <div class="note">Overwrite replaces the working copy inside SpriteR so you can make another micro-adjustment immediately. Your device file is not silently changed.</div>
+        <div class="note">When supported, choose the original PNG (or its folder for a batch) and confirm the replacement in the file picker. Other browsers download PNGs with the original names; replace the files yourself. SpriteR also updates its loaded copies for the next tweak.</div>
       </div>
     </aside>
 
     <main class="alignmain">
       <div class="topbar"><div class="metrics" id="alignMetrics"></div><div class="status" id="alignStatus">Load two assets, then align the target.</div></div>
+      <div class="align-view-tools" aria-label="Canvas preview controls">
+        <div class="align-tool-modes">
+          <button class="toolbtn active" data-touch-tool="move">Move</button>
+          <button class="toolbtn" data-touch-tool="hand">Pan</button>
+          <button class="toolbtn" data-touch-tool="picker">Picker</button>
+          <button class="toolbtn" data-touch-tool="brush">Brush</button>
+          <button class="toolbtn" data-touch-tool="eraser">Eraser</button>
+        </div>
+        <div class="align-tool-nav">
+          <span class="align-tool-label">Nudge</span>
+          <button id="alignQuickLeft" aria-label="Nudge target left">←</button>
+          <button id="alignQuickUp" aria-label="Nudge target up">↑</button>
+          <button id="alignQuickDown" aria-label="Nudge target down">↓</button>
+          <button id="alignQuickRight" aria-label="Nudge target right">→</button>
+          <span class="align-tool-divider" aria-hidden="true"></span>
+          <button id="alignZoomOut" aria-label="Zoom out">−</button>
+          <span id="alignToolbarZoom" aria-live="polite">100%</span>
+          <button id="alignZoomIn" aria-label="Zoom in">+</button>
+          <button id="alignToolbarFit">Fit</button>
+        </div>
+      </div>
       <div class="alignviewwrap">
         <div class="alignviewport" id="alignViewport">
           <canvas id="alignCanvas"></canvas>
-          <div class="align-help">Drag target to move · choose Difference blend to expose mismatched edges</div>
+          <div class="align-help" id="alignHelp">Drag target to align · Pan preview to inspect without moving artwork · pinch or scroll to zoom</div>
         </div>
       </div>
     </main>
@@ -147,9 +169,9 @@
         <h2>Export</h2>
         <div class="btnrow"><button class="primary" id="resizeDownloadSelected">Download selected PNG</button><button class="primary" id="resizeDownloadZip">Download all as ZIP</button></div>
         <h2 style="margin-top:16px">Iterate without re-importing</h2>
-        <div class="btnrow"><button id="resizeOverwriteSelected">Overwrite loaded selected</button><button id="resizeOverwriteAll">Overwrite all loaded</button><button id="resizeReloadOriginals">Reload uploaded originals</button></div>
+        <div class="btnrow"><button id="resizeOverwriteSelected">Save over original selected</button><button id="resizeOverwriteAll">Save over all originals</button><button id="resizeReloadOriginals">Reload uploaded originals</button></div>
         <div class="confirmbar" id="resizeOverwriteConfirm" hidden><span id="resizeOverwriteConfirmText"></span><div class="btnrow"><button class="danger" id="resizeOverwriteConfirmBtn">Confirm overwrite</button><button id="resizeOverwriteCancel">Cancel</button></div></div>
-        <div class="note">Exports are transparent PNGs using the original uploaded filenames. Overwrite only replaces SpriteR's working copy; originals on your device remain untouched.</div>
+        <div class="note">When supported, choose the original PNG (or its folder for a batch) to replace it. Other browsers download PNGs for you to replace manually. The loaded copies update after export so you can keep tweaking.</div>
       </div>
 
       <div class="section">
@@ -171,9 +193,9 @@
   </div>
 </section>
 </div>
-<script src="app-core.js?v=4"></script>
+<script src="app-core.js?v=6"></script>
 <script src="app-atlas.js?v=2"></script>
-<script src="app-align.js?v=2"></script>
-<script src="app-resize.js?v=2"></script>
+<script src="app-align.js?v=5"></script>
+<script src="app-resize.js?v=3"></script>
 </body>
 </html>

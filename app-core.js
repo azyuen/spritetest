@@ -15,8 +15,13 @@ function currentFrame(){return state.frames[state.frame]||null}
 function currentMeta(){const f=currentFrame();return f?frameMeta(f.key):{ox:0,oy:0}}
 function syncOffsetInputs(){const m=currentMeta();$('offsetX').value=m.ox||0;$('offsetY').value=m.oy||0}
 
+const appHead=document.querySelector('.apphead');
+function syncAppHeadHeight(){document.documentElement.style.setProperty('--spriter-head-height',Math.ceil(appHead.getBoundingClientRect().height)+'px')}
+syncAppHeadHeight();
+if(window.ResizeObserver)new ResizeObserver(syncAppHeadHeight).observe(appHead);
+else window.addEventListener('resize',syncAppHeadHeight);
 for(const btn of document.querySelectorAll('.tabbtn'))btn.onclick=()=>switchTab(btn.dataset.tab);
-function switchTab(id){document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active',p.id===id));if(id==='designTab')requestAnimationFrame(()=>fitPreview(false));if(id==='atlasTab'&&state.atlas)requestAnimationFrame(()=>fitAtlas(false))}
+function switchTab(id){document.querySelector('.app').classList.toggle('align-mode',id==='alignTab');document.querySelectorAll('.tabbtn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));document.querySelectorAll('.tabpanel').forEach(p=>p.classList.toggle('active',p.id===id));requestAnimationFrame(syncAppHeadHeight);if(id==='designTab')requestAnimationFrame(()=>fitPreview(false));if(id==='atlasTab'&&state.atlas)requestAnimationFrame(()=>fitAtlas(false))}
 
 const drop=$('drop'),fileInput=$('files');drop.onclick=()=>fileInput.click();drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag')};drop.ondragleave=()=>drop.classList.remove('drag');drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');loadFiles([...e.dataTransfer.files])};fileInput.onchange=e=>loadFiles([...e.target.files]);
 function loadFiles(files){const valid=files.filter(f=>f.type.startsWith('image/'));if(!valid.length)return;let pending=valid.length;status(`Loading ${valid.length} asset${valid.length===1?'':'s'}…`);for(const file of valid){const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{state.assets.push({file,url,img,originalName:file.name,name:file.name,w:img.naturalWidth,h:img.naturalHeight,id:crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2),uploaded:{file,url,img,w:img.naturalWidth,h:img.naturalHeight}});pending--;if(pending===0){if(state.assets.length===valid.length){$('fw').value=state.assets[0].w;$('fh').value=state.assets[0].h}renderAssets();rebuildFrames();ensureDefaults(false);status(`${state.assets.length} asset${state.assets.length===1?'':'s'} ready`)}};img.src=url}}
@@ -33,6 +38,43 @@ $('restoreNames').onclick=()=>{state.assets.forEach(a=>a.name=a.originalName);re
 function downloadAsset(a){if(!a)return;fetch(a.url).then(r=>r.blob()).then(blob=>downloadBlob(blob,a.name))}
 $('downloadSelected').onclick=()=>downloadAsset(state.assets[state.selected]);$('downloadAll').onclick=()=>state.assets.forEach((a,i)=>setTimeout(()=>downloadAsset(a),i*250));
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+// A file input supplies a read-only File, not permission to change its source.
+// Ask the user to select the original file (or folder for a batch) before rendering.
+function canSaveOriginalPngs(count){return count===1?typeof window.showSaveFilePicker==='function':typeof window.showDirectoryPicker==='function'}
+function pngNameForAsset(asset){const raw=String(asset?.originalName||asset?.name||'sprite.png');return /\.png$/i.test(raw)?raw:raw.replace(/\.[^.]+$/,'')+'.png'}
+async function chooseOriginalPngHandles(names){
+  if(!canSaveOriginalPngs(names.length))return null;
+  if(new Set(names).size!==names.length)throw new Error('Two loaded assets have the same original filename. Rename them on your device first.');
+  if(names.length===1){
+    let handle;
+    try{handle=await window.showSaveFilePicker({suggestedName:names[0],types:[{description:'PNG image',accept:{'image/png':['.png']}}]})}
+    catch(error){if(['SecurityError','NotAllowedError'].includes(error.name))return null;throw error}
+    if(handle.name!==names[0])throw new Error('Choose the original file named '+names[0]+'. No file was changed.');
+    return [handle];
+  }
+  let folder;
+  try{folder=await window.showDirectoryPicker({mode:'readwrite'})}
+  catch(error){if(['SecurityError','NotAllowedError'].includes(error.name))return null;throw error}
+  const handles=[];
+  for(const name of names){
+    try{handles.push(await folder.getFileHandle(name,{create:false}))}
+    catch(error){if(error.name==='NotFoundError')throw new Error('The selected folder is missing '+name+'. No files were changed.');throw error}
+  }
+  return handles;
+}
+async function saveOriginalPngResults(handles,files){
+  if(!handles){
+    files.forEach((file,i)=>setTimeout(()=>downloadBlob(file.blob,file.name),i*300));
+    return false; // Downloads cannot replace source files without the user's help.
+  }
+  for(let i=0;i<handles.length;i++){
+    const writable=await handles[i].createWritable();
+    try{await writable.write(files[i].blob);await writable.close()}
+    catch(error){try{await writable.abort()}catch(_){}throw error}
+  }
+  return true;
+}
 
 function canvasBlobPng(canvas){
   return new Promise((resolve,reject)=>{
