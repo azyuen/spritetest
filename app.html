@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1" />
 <title>SpriteR</title>
-<link rel="stylesheet" href="app.css?v=5" />
+<link rel="stylesheet" href="app.css?v=6" />
 </head>
 <body>
 <div class="app">
@@ -22,6 +22,26 @@
         <div class="field"><label>Fixed reference</label><select id="alignReference"></select></div>
         <div class="field"><label>Movable target</label><select id="alignTarget"></select></div>
         <div class="note">The reference never moves. The target is scaled and shifted around the shared canvas centre. This mirrors the way Phaser places a sprite with a 0.5 / 0.5 origin.</div>
+      </div>
+
+      <div class="section tokyo-shift-panel">
+        <h2>Tokyo SHIFT Auto Align</h2>
+        <div class="note">Fast car workflow: align the stock master once, mark the two wheel centres/radii, then export every linked body/paint variant on the same 500px game canvas.</div>
+        <div class="row">
+          <div class="field"><label>Game canvas width <small>px</small></label><input id="tsCanvasW" type="number" min="1" value="1200"></div>
+          <div class="field"><label>Game canvas height <small>px</small></label><input id="tsCanvasH" type="number" min="1" value="500"></div>
+        </div>
+        <div class="btnrow"><button class="primary" id="tsAutoCanvas">Auto-align stock to reference</button><button id="tsUseCurrent">Use current as master</button></div>
+        <label class="check"><input id="tsShowFloor" type="checkbox" checked> Show Tokyo SHIFT floor guide</label>
+        <div class="field"><label>Floor Y <small>px</small></label><input id="tsFloorY" type="number" step="0.25" value="482"></div>
+        <div class="note">Auto-align normalises the target onto the reference canvas using visible alpha bounds, then matches the bottom/floor and horizontal centre. Fine-tune once if needed.</div>
+
+        <h2 style="margin-top:15px">Wheel calibration</h2>
+        <div class="btnrow"><button id="tsRearWheel">Set rear wheel</button><button id="tsFrontWheel">Set front wheel</button><button id="tsClearWheels">Clear wheels</button></div>
+        <div class="field" style="margin-top:8px"><label>Wheel radius <small><span id="tsWheelRadiusLabel">92px</span></small></label><input id="tsWheelRadius" type="range" min="20" max="180" step="1" value="92"></div>
+        <div class="summary" id="tsGeometrySummary">Set rear and front wheel centres on the preview.</div>
+        <div class="btnrow" style="margin-top:8px"><button class="primary" id="tsExportPack">Export Tokyo SHIFT geometry</button></div>
+        <div class="note">The JSON records the master canvas, shared body transform and independent rear/front wheel geometry for Tokyo SHIFT. Linked variants keep exactly the stock transform.</div>
       </div>
 
       <div class="section">
@@ -195,7 +215,7 @@
 </div>
 <script src="app-core.js?v=6"></script>
 <script src="app-atlas.js?v=2"></script>
-<script src="app-align.js?v=5"></script>
+<script src="app-align.js?v=6"></script>
 <script src="app-resize.js?v=3"></script>
 </body>
 </html>
