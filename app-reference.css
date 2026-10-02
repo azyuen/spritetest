@@ -41,3 +41,15 @@
   .reference-view-tools button{min-height:34px;padding:5px 7px}
   .reference-help{font-size:10px;padding:4px 6px;left:6px;bottom:6px}
 }
+
+/* Reference Layout multi-layer stacks */
+.reference-layer-list,.reference-export-list{display:flex;flex-direction:column;gap:6px;margin-top:9px;max-height:290px;overflow:auto}
+.reference-layer-row{display:grid;grid-template-columns:minmax(0,1fr) 132px;gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:#0d121a}
+.reference-layer-main{display:flex;align-items:center;gap:6px;min-width:0}
+.reference-layer-main span:not(.reference-layer-badge){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reference-layer-badge{flex:none;padding:2px 5px;border:1px solid #2f6682;border-radius:5px;color:#7dd3fc;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.reference-layer-opacity{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:5px;align-items:center}
+.reference-layer-opacity small{color:var(--muted);text-align:right}
+.reference-export-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:#0d121a}
+.reference-export-row span{display:flex;flex-direction:column;min-width:0}.reference-export-row b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}.reference-export-row small{color:var(--muted);font-size:10px}
+@media(max-width:620px){.reference-layer-row{grid-template-columns:1fr}.reference-layer-opacity{padding-left:23px}}
