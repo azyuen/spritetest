@@ -53,3 +53,18 @@
 .reference-export-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:#0d121a}
 .reference-export-row span{display:flex;flex-direction:column;min-width:0}.reference-export-row b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}.reference-export-row small{color:var(--muted);font-size:10px}
 @media(max-width:620px){.reference-layer-row{grid-template-columns:1fr}.reference-layer-opacity{padding-left:23px}}
+
+
+/* Independent reference / target layer editor */
+.reference-independent-row{display:grid;grid-template-columns:34px minmax(100px,1fr) auto auto minmax(90px,130px);gap:7px;align-items:center;padding:7px;border:1px solid var(--line);border-radius:9px;background:#0d121a}
+.reference-independent-row.active{border-color:#38bdf8;background:#10202b}
+.reference-independent-main{min-width:0}.reference-independent-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}.reference-independent-main small{display:block;color:var(--muted);font-size:10px}
+.reference-layer-select{width:32px;height:32px;padding:0;border-radius:7px}.reference-layer-select.active{background:#173042;border-color:#38bdf8;color:#fff}
+.reference-mini-check{display:flex;align-items:center;gap:4px;font-size:10px;color:#cbd5e1;white-space:nowrap}
+.reference-mini-check input{margin:0}
+@media(max-width:760px){
+  .reference-independent-row{grid-template-columns:34px minmax(0,1fr) auto auto}
+  .reference-independent-row .reference-layer-opacity{grid-column:2/-1}
+  .reference-export-list .reference-independent-row{grid-template-columns:34px minmax(0,1fr) auto auto}
+  .reference-export-list .reference-independent-row .reference-mini-check:nth-of-type(3){grid-column:3/5}
+}
