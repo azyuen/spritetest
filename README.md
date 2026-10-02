@@ -8,7 +8,7 @@ A browser-based production helper for Tokyo SHIFT and other 2D sprite workflows.
 - **Sprite Design** — inspect animation frames, set a shared logical canvas and pivot, and preview playback.
 - **Atlas Builder** — export Phaser-friendly PNG + JSON atlases.
 - **Canvas Align** — align a generated PNG against a fixed master/reference sprite, then export it onto the exact reference canvas.
-- **Reference Layout** — compose multiple fixed reference PNG layers, position/resize an active transparent sprite against reusable guides, link multiple target layers to the same transform, and export each positioned layer individually or as a ZIP.
+- **Reference Layout** — independently position, scale, show/hide and lock multiple reference PNGs and multiple target PNGs; lock the reference setup, then place targets one by one and export each target using its own saved transform.
 - **Resize & Export** — resize complete transparent canvases, verify paired layers, and download the results as original-filename PNGs or one ZIP.
 
 The recommended Tokyo SHIFT car-layer resize preset is **1200 px wide**. The
