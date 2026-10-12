@@ -17,6 +17,7 @@
   const number=(id,fallback=0)=>{const n=+by(id).value;return Number.isFinite(n)?n:fallback};
   const constrain=(n,a,b)=>Math.max(a,Math.min(b,n));
   const round=n=>Math.round(n*100)/100;
+  const precise=n=>Math.round(n*1000000)/1000000;
   const status=s=>{by('carStatus').textContent=s;};
   const baseName=()=>String(by('carId').value||'new_car').trim().replace(/[^a-z0-9_-]/gi,'_').slice(0,64)||'new_car';
   const activeRefKey=()=>by('carReference').value==='r32'?'r32':'ae86';
@@ -464,13 +465,13 @@
       }:null;
     }
     return{
-      version:1,source:'SpriteR Car Asset Studio',carId:name,
+      version:1,format:'SpriteR Car Asset Studio',carId:name,
       anchor:'bottom-right',canvas:{width:C.w,height:C.h,transparent:true},
       exports:{body:'body/'+name+'.png',paint:'paint/'+name+'.png'},
-      car:{x:round(C.x),y:round(C.y),scale:round(C.s),visiblePixelWidth:round(alphaBounds(C.body).w*C.s),
+      car:{x:round(C.x),y:round(C.y),scale:precise(C.s),visiblePixelWidth:round(alphaBounds(C.body).w*C.s),
         visiblePixelHeight:round(alphaBounds(C.body).h*C.s)},
       paintAlignment:{offsetX:round(C.paintAlign.dx),offsetY:round(C.paintAlign.dy),
-        scaleX:round(C.paintAlign.sx),scaleY:round(C.paintAlign.sy),pairLocked:C.locked},
+        scaleX:precise(C.paintAlign.sx),scaleY:precise(C.paintAlign.sy),pairLocked:C.locked},
       dimensionsMm:{length:number('carLength')||null,height:number('carHeight')||null,
         referenceLength:number('carRefLength')||null,referenceHeight:number('carRefHeight')||null},
       source:{body:C.body.name,paint:C.paint.name,reference:activeRef()?.name||null},
@@ -548,7 +549,7 @@
     const file=by('carImportGeometry').files?.[0];if(!file)return;
     try{
       const saved=JSON.parse(await file.text());
-      if(saved.source!=='SpriteR Car Asset Studio'||saved.version!==1)throw new Error('Not a Car Asset Studio geometry JSON.');
+      if(saved.format!=='SpriteR Car Asset Studio'||saved.version!==1)throw new Error('Not a Car Asset Studio geometry JSON.');
       if(!saved.canvas||!saved.car||!saved.paintAlignment||!saved.wheels)throw new Error('Geometry JSON is missing required fields.');
       const safe=(v,min,max)=>Number.isFinite(+v)?constrain(+v,min,max):null;
       const w=safe(saved.canvas.width,1,8192),h=safe(saved.canvas.height,1,8192);
