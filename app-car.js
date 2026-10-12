@@ -466,7 +466,7 @@
     return{
       version:1,source:'SpriteR Car Asset Studio',carId:name,
       anchor:'bottom-right',canvas:{width:C.w,height:C.h,transparent:true},
-      exports:{body:'body/'+name+'_body.png',paint:'paint/'+name+'_paint.png'},
+      exports:{body:'body/'+name+'.png',paint:'paint/'+name+'.png'},
       car:{x:round(C.x),y:round(C.y),scale:round(C.s),visiblePixelWidth:round(alphaBounds(C.body).w*C.s),
         visiblePixelHeight:round(alphaBounds(C.body).h*C.s)},
       paintAlignment:{offsetX:round(C.paintAlign.dx),offsetY:round(C.paintAlign.dy),
@@ -529,8 +529,8 @@
       validate();button.disabled=true;status('Building car package…');
       const name=baseName();
       const entries=[
-        {path:'body/'+name+'_body.png',blob:await canvasBlobPng(layerCanvas('body'))},
-        {path:'paint/'+name+'_paint.png',blob:await canvasBlobPng(layerCanvas('paint'))},
+        {path:'body/'+name+'.png',blob:await canvasBlobPng(layerCanvas('body'))},
+        {path:'paint/'+name+'.png',blob:await canvasBlobPng(layerCanvas('paint'))},
         {path:'data/'+name+'_geometry.json',blob:jsonBlob()}
       ];
       for(const k of wnames){const wheel=C.wheel[k];
@@ -541,6 +541,45 @@
     }catch(e){console.error(e);status(e.message||'Could not export ZIP.');}
     finally{button.disabled=false;}
   };
+
+  // Geometry JSON is editable and re-importable. Image source files are intentionally
+  // not embedded in the JSON; re-upload them and then load this saved configuration.
+  by('carImportGeometry').onchange=async()=>{
+    const file=by('carImportGeometry').files?.[0];if(!file)return;
+    try{
+      const saved=JSON.parse(await file.text());
+      if(saved.source!=='SpriteR Car Asset Studio'||saved.version!==1)throw new Error('Not a Car Asset Studio geometry JSON.');
+      if(!saved.canvas||!saved.car||!saved.paintAlignment||!saved.wheels)throw new Error('Geometry JSON is missing required fields.');
+      const safe=(v,min,max)=>Number.isFinite(+v)?constrain(+v,min,max):null;
+      const w=safe(saved.canvas.width,1,8192),h=safe(saved.canvas.height,1,8192);
+      const x=safe(saved.car.x,-20000,20000),y=safe(saved.car.y,-20000,20000),s=safe(saved.car.scale,.01,10);
+      if([w,h,x,y,s].some(v=>v===null))throw new Error('Invalid canvas/car coordinates in JSON.');
+      C.w=w;C.h=h;C.x=x;C.y=y;C.s=s;
+      C.paintAlign={
+        dx:safe(saved.paintAlignment.offsetX,-20000,20000)??0,
+        dy:safe(saved.paintAlignment.offsetY,-20000,20000)??0,
+        sx:safe(saved.paintAlignment.scaleX,.01,4)??1,
+        sy:safe(saved.paintAlignment.scaleY,.01,4)??1
+      };
+      C.locked=!!saved.paintAlignment.pairLocked;
+      for(const k of wnames){
+        const src=saved.wheels[k],wheel=C.wheel[k];
+        if(!src){wheel.placed=false;continue;}
+        const wx=safe(src.x,-20000,20000),wy=safe(src.y,-20000,20000),radius=safe(src.radius,1,2048);
+        wheel.placed=[wx,wy,radius].every(v=>v!==null);
+        if(wheel.placed){wheel.x=wx;wheel.y=wy;wheel.r=radius;}
+      }
+      by('carCanvasW').value=w;by('carCanvasH').value=h;
+      if(saved.carId)by('carId').value=String(saved.carId).slice(0,64);
+      if(saved.dimensionsMm){
+        for(const [field,id] of [['length','carLength'],['height','carHeight'],['referenceLength','carRefLength'],['referenceHeight','carRefHeight']])
+          by(id).value=saved.dimensionsMm[field]||'';
+      }
+      syncCarControls();syncPaintControls();syncWheels();updateRatio();setTool('move');draw();fitView();
+      status('Saved geometry loaded. Review against the source BODY/PAINT before exporting.');
+    }catch(err){console.error(err);status(err.message||'Could not read geometry JSON.');}
+  };
+
   if(window.ResizeObserver)new ResizeObserver(()=>draw()).observe(view);
   window.addEventListener('resize',draw);
   document.querySelector('[data-tab="carStudioTab"]').addEventListener('click',()=>requestAnimationFrame(fitView));
