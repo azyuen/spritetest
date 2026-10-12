@@ -269,7 +269,16 @@
         <div class="field"><label>Uniform scale <small>%</small></label><input type="number" id="carScale" step=".05" min="1" max="1000" value="100"></div>
         <div class="btnrow"><button id="carMatchNose">Align nose + bottom</button><button id="carResetTransform">Reset car transform</button></div>
         <div class="note">Move the car, then drag the top-left square diagonally. The opposite, bottom-right corner stays anchored as it scales.</div>
-        <h2 style="margin-top:14px">Real-world proportions</h2>
+        <h2 style="margin-top:14px">Vehicle size guide</h2>
+        <div class="note">Automatic guide from the supplied vehicle-dimensions JSON. The numbers are for visual proportion only — they never change your car layers.</div>
+        <div class="field"><label>Target vehicle (auto-detected from filename)</label><select id="carProportionVehicle"><option value="auto">Auto-detect from BODY / PAINT filename</option></select></div>
+        <div class="summary car-proportion-result" id="carProportionGuide">Loading dimensions…</div>
+        <div class="note" id="carProportionStatus">Loading vehicle size references…</div>
+        <details class="car-proportion-data"><summary>Update reference dimensions JSON</summary>
+          <div class="field"><label>Replacement dimensions JSON</label><input id="carProportionUpload" type="file" accept=".json,application/json"></div>
+          <div class="note" id="carProportionDataStatus">Bundled comparison file</div>
+        </details>
+        <h2 style="margin-top:14px">Manual size tools (optional)</h2>
         <div class="row"><div class="field"><label>Ref length <small>mm</small></label><input type="number" min="1" id="carRefLength" placeholder="e.g. 4200"></div><div class="field"><label>Ref height <small>mm</small></label><input type="number" min="1" id="carRefHeight" placeholder="e.g. 1335"></div></div>
         <div class="row"><div class="field"><label>New car length <small>mm</small></label><input type="number" min="1" id="carLength"></div><div class="field"><label>New car height <small>mm</small></label><input type="number" min="1" id="carHeight"></div></div>
         <div class="summary" id="carRatio">Enter vehicle dimensions for a length/height comparison.</div>
@@ -380,6 +389,7 @@
 <script src="app-align.js?v=6"></script>
 <script src="app-resize.js?v=3"></script>
 <script src="app-reference.js?v=3"></script>
-<script src="app-car.js?v=1"></script>
+<script src="app-car.js?v=2"></script>
+<script src="app-car-proportions.js?v=1"></script>
 </body>
 </html>
