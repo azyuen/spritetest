@@ -260,3 +260,289 @@
     by('carBrushColor').value='#'+[0,1,2].map(i=>data[i].toString(16).padStart(2,'0')).join('');
     status('Colour sampled from PAINT.');
   }
+
+  function setTool(name){
+    C.tool=name;
+    by('carTools').querySelectorAll('[data-car-tool]').forEach(btn=>btn.classList.toggle('active',btn.dataset.carTool===name));
+    by('carPickRear').classList.toggle('active',name==='place-rear');
+    by('carPickFront').classList.toggle('active',name==='place-front');
+    view.classList.toggle('pan',name==='pan');
+    if(name==='paint-align'&&C.locked)status('Unlock BODY + PAINT to realign.');
+    else status({move:'Move the paired car or drag the cyan top-left handle to resize.', 'paint-align':'Drag PAINT relative to BODY before locking.',picker:'Click PAINT to sample a colour.',brush:'Paint on the PAINT layer only.',eraser:'Erase pixels from PAINT.',pan:'Drag to pan the workspace.','place-rear':'Tap rear wheel centre.','place-front':'Tap front wheel centre.'}[name]||'Ready.');
+  }
+  function insideRect(p,r,pad=0){return r&&p.x>=r.x-pad&&p.x<=r.x+r.w+pad&&p.y>=r.y-pad&&p.y<=r.y+r.h+pad;}
+  function beginPinch(){
+    const pts=[...C.pointers.values()],a=pts[0],b=pts[1];
+    if(C.painting&&C.history.length)restorePixels(C.history.pop()); // Cancel accidental second-finger stroke.
+    C.painting=false;C.drag=null;
+    const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    C.gesture={distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:C.zoom,anchor:toWorld(mx,my)};
+  }
+  view.addEventListener('pointerdown',e=>{
+    if(!by('carStudioTab').classList.contains('active'))return;
+    if(e.pointerType==='mouse'&&e.button!==0&&e.button!==1)return;
+    view.setPointerCapture?.(e.pointerId);
+    C.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(C.pointers.size===2){beginPinch();e.preventDefault();return;}
+    if(C.pointers.size!==1)return;
+    const p=toWorld(e.clientX,e.clientY),rect=bodyRect(),pr=paintRect();
+    if(C.spacePan||C.tool==='pan'||e.button===1){
+      C.drag={kind:'pan',clientX:e.clientX,clientY:e.clientY,px:C.panX,py:C.panY};return;
+    }
+    if(C.tool==='place-rear'||C.tool==='place-front'){
+      const key=C.tool==='place-rear'?'rear':'front';
+      Object.assign(C.wheel[key],{x:p.x,y:p.y,placed:true});
+      syncWheels();setTool('move');draw();return;
+    }
+    if(C.tool==='picker'){pickColor(paintPoint(p));return;}
+    if(C.tool==='brush'||C.tool==='eraser'){
+      if(!C.paintCanvas||!insideRect(p,pr))return status('Click within PAINT to edit it.');
+      const pt=paintPoint(p);pushHistory();C.painting=true;C.lastPt=pt;
+      paintSegment(pt,pt,C.tool==='eraser');e.preventDefault();return;
+    }
+    if(C.tool==='paint-align'){
+      if(C.locked)return status('Unlock the pair before aligning PAINT.');
+      if(!insideRect(p,pr))return;
+      C.drag={kind:'paint',point:p,dx:C.paintAlign.dx,dy:C.paintAlign.dy};return;
+    }
+    if(C.tool!=='move'||!rect)return;
+    for(const k of wnames){
+      const w=C.wheel[k];
+      if(w.placed&&Math.hypot(p.x-w.x,p.y-w.y)<Math.max(14/C.zoom,w.r*.55)){
+        C.drag={kind:'wheel',key:k,dx:p.x-w.x,dy:p.y-w.y};return;
+      }
+    }
+    if(Math.hypot(p.x-rect.x,p.y-rect.y)<Math.max(20/C.zoom,12)){
+      C.drag={kind:'resize',right:rect.x+rect.w,bottom:rect.y+rect.h};return;
+    }
+    if(insideRect(p,rect,8/C.zoom)){
+      C.drag={kind:'move',point:p,x:C.x,y:C.y};return;
+    }
+  });
+  view.addEventListener('pointermove',e=>{
+    if(!C.pointers.has(e.pointerId))return;
+    C.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(C.gesture&&C.pointers.size>=2){
+      const pts=[...C.pointers.values()],a=pts[0],b=pts[1];
+      const midX=(a.x+b.x)/2,midY=(a.y+b.y)/2,r=view.getBoundingClientRect();
+      C.zoom=constrain(C.gesture.zoom*Math.hypot(a.x-b.x,a.y-b.y)/C.gesture.distance,.04,12);
+      C.panX=midX-r.left-r.width/2-(C.gesture.anchor.x-C.w/2)*C.zoom;
+      C.panY=midY-r.top-r.height/2-(C.gesture.anchor.y-C.h/2)*C.zoom;
+      draw();e.preventDefault();return;
+    }
+    const p=toWorld(e.clientX,e.clientY);
+    if(C.painting){
+      const next=paintPoint(p);if(next){paintSegment(C.lastPt,next,C.tool==='eraser');C.lastPt=next;}return;
+    }
+    const d=C.drag;if(!d)return;
+    if(d.kind==='pan'){C.panX=d.px+e.clientX-d.clientX;C.panY=d.py+e.clientY-d.clientY;draw();}
+    if(d.kind==='move')moveCar(d.x+p.x-d.point.x,d.y+p.y-d.point.y,C.s);
+    if(d.kind==='resize'){
+      const sx=(d.right-p.x)/C.body.w,sy=(d.bottom-p.y)/C.body.h;
+      const scale=constrain(Math.min(sx,sy),.01,10);
+      moveCar(d.right-C.body.w*scale,d.bottom-C.body.h*scale,scale);
+    }
+    if(d.kind==='paint'){
+      C.paintAlign.dx=d.dx+(p.x-d.point.x)/C.s;
+      C.paintAlign.dy=d.dy+(p.y-d.point.y)/C.s;
+      syncPaintControls();draw();
+    }
+    if(d.kind==='wheel'){
+      const w=C.wheel[d.key];w.x=p.x-d.dx;w.y=p.y-d.dy;syncWheels();draw();
+    }
+    e.preventDefault();
+  });
+  function endPointer(e){
+    C.pointers.delete(e.pointerId);
+    if(C.pointers.size<2)C.gesture=null;
+    C.drag=null;C.painting=false;C.lastPt=null;
+  }
+  view.addEventListener('pointerup',endPointer);
+  view.addEventListener('pointercancel',endPointer);
+  view.addEventListener('wheel',e=>{
+    if(!by('carStudioTab').classList.contains('active'))return;
+    e.preventDefault();zoomAt(C.zoom*Math.exp(-e.deltaY*.002),e.clientX,e.clientY);
+  },{passive:false});
+  view.addEventListener('dblclick',e=>{if(C.tool==='pan')zoomAt(C.zoom*1.5,e.clientX,e.clientY)});
+  window.addEventListener('keydown',e=>{
+    if(!by('carStudioTab').classList.contains('active'))return;
+    if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
+    if(e.code==='Space'){C.spacePan=true;view.classList.add('pan');e.preventDefault();return;}
+    if(C.tool!=='move'||!C.body)return;
+    const amount=e.shiftKey?10:e.altKey?.25:1;
+    let x=C.x,y=C.y;
+    if(e.key==='ArrowLeft')x-=amount;
+    else if(e.key==='ArrowRight')x+=amount;
+    else if(e.key==='ArrowUp')y-=amount;
+    else if(e.key==='ArrowDown')y+=amount;
+    else return;
+    e.preventDefault();e.stopImmediatePropagation();moveCar(x,y,C.s);
+  },true);
+  window.addEventListener('keyup',e=>{if(e.code==='Space'){C.spacePan=false;view.classList.toggle('pan',C.tool==='pan');}});
+  window.addEventListener('blur',()=>{C.spacePan=false;view.classList.toggle('pan',C.tool==='pan');});
+
+  by('carRefAE86').onchange=()=>importAsset('carRefAE86','ae86');
+  by('carRefR32').onchange=()=>importAsset('carRefR32','r32');
+  by('carBodyFile').onchange=()=>importAsset('carBodyFile','body');
+  by('carPaintFile').onchange=()=>importAsset('carPaintFile','paint');
+  by('carRearWheelFile').onchange=()=>importAsset('carRearWheelFile','rear');
+  by('carFrontWheelFile').onchange=()=>importAsset('carFrontWheelFile','front');
+  by('carReference').onchange=()=>{
+    const dimensions=C.referenceDims[activeRefKey()];
+    by('carRefLength').value=dimensions.length||'';
+    by('carRefHeight').value=dimensions.height||'';
+    updateRatio();draw();
+  };
+  by('carRefOpacity').oninput=draw;
+  by('carLayersLocked').onchange=()=>{C.locked=by('carLayersLocked').checked;syncPaintControls();if(C.locked&&C.tool==='paint-align')setTool('move');draw()};
+  by('carLockPair').onclick=()=>{C.locked=!C.locked;syncPaintControls();setTool('move');draw()};
+  function readPaintControls(){
+    if(C.locked)return;
+    C.paintAlign.dx=number('carPaintX');C.paintAlign.dy=number('carPaintY');
+    C.paintAlign.sx=constrain(number('carPaintSX',100)/100,.01,4);
+    C.paintAlign.sy=constrain(number('carPaintSY',100)/100,.01,4);draw();
+  }
+  for(const id of ['carPaintX','carPaintY','carPaintSX','carPaintSY'])by(id).addEventListener('input',readPaintControls);
+  by('carResetPaint').onclick=()=>{if(C.locked)return;C.paintAlign={dx:0,dy:0,sx:1,sy:1};syncPaintControls();draw();};
+  function readCarControls(){if(C.body)moveCar(number('carX'),number('carY'),constrain(number('carScale',100)/100,.01,10));}
+  for(const id of ['carX','carY','carScale'])by(id).addEventListener('change',readCarControls);
+  by('carMatchNose').onclick=alignNose;
+  by('carResetTransform').onclick=()=>{
+    if(!C.body)return;
+    const scale=Math.min(1,C.w/C.body.w,C.h/C.body.h);
+    moveCar(C.w-C.body.w*scale,C.h-C.body.h*scale,scale);
+  };
+  for(const id of ['carRefLength','carRefHeight','carLength','carHeight'])by(id).addEventListener('input',updateRatio);
+  by('carApplyLength').onclick=applyLength;
+  by('carTools').querySelectorAll('[data-car-tool]').forEach(btn=>btn.onclick=()=>setTool(btn.dataset.carTool));
+  by('carBrushSize').oninput=()=>{by('carBrushSizeLabel').textContent=by('carBrushSize').value+'px';};
+  by('carUndo').onclick=undo;by('carRedo').onclick=redo;
+  for(const id of ['carShowBody','carShowPaint','carShowWheels','carPixel'])by(id).onchange=draw;
+  by('carPickRear').onclick=()=>setTool('place-rear');
+  by('carPickFront').onclick=()=>setTool('place-front');
+  for(const k of wnames){
+    const p=k==='rear'?'carRear':'carFront';
+    for(const axis of ['X','Y','Radius'])by(p+axis).addEventListener('change',()=>{
+      const w=C.wheel[k];
+      if(axis==='Radius'){w.r=constrain(number(p+'Radius',38),1,2048);}
+      else {w[axis.toLowerCase()]=number(p+axis);w.placed=true;}
+      syncWheels();draw();
+    });
+  }
+  for(const id of ['carCanvasW','carCanvasH'])by(id).onchange=()=>changeCanvas(number('carCanvasW',C.w),number('carCanvasH',C.h));
+  by('carUseAE86Canvas').onclick=()=>{
+    if(!C.refs.ae86)return status('Load your AE86 reference PNG first.');
+    changeCanvas(C.refs.ae86.w,C.refs.ae86.h);status('Canvas matched the AE86 image dimensions.');
+  };
+  by('carWider').onclick=()=>changeCanvas(C.w+40,C.h);
+  by('carTaller').onclick=()=>changeCanvas(C.w,C.h+40);
+  by('carZoomIn').onclick=()=>zoomCenter(1.25);
+  by('carZoomOut').onclick=()=>zoomCenter(.8);
+  by('carFit').onclick=fitView;
+  by('carActual').onclick=()=>zoomCenter(1/C.zoom);
+
+  function validate(){
+    if(!C.body||!C.paint||!C.paintCanvas)throw new Error('Import both BODY and PAINT PNGs first.');
+    if(!C.locked)throw new Error('Lock the BODY and PAINT pair before exporting.');
+    if(C.w*C.h>24000000)throw new Error('Output canvas is too large. Reduce its dimensions.');
+  }
+  function layerCanvas(kind){
+    const canvas=document.createElement('canvas');canvas.width=C.w;canvas.height=C.h;
+    const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=!by('carPixel').checked;
+    const r=kind==='body'?bodyRect():paintRect(),src=kind==='body'?C.body?.img:C.paintCanvas;
+    if(r&&src)ctx.drawImage(src,r.x,r.y,r.w,r.h);
+    return canvas;
+  }
+  function geometry(){
+    const name=baseName();
+    const wheels={};
+    for(const k of wnames){
+      const wheel=C.wheel[k];
+      wheels[k]=wheel.placed?{
+        x:round(wheel.x),y:round(wheel.y),radius:round(wheel.r),diameter:round(wheel.r*2),
+        sprite:wheel.image?'wheels/'+name+'_'+k+'.png':null
+      }:null;
+    }
+    return{
+      version:1,source:'SpriteR Car Asset Studio',carId:name,
+      anchor:'bottom-right',canvas:{width:C.w,height:C.h,transparent:true},
+      exports:{body:'body/'+name+'_body.png',paint:'paint/'+name+'_paint.png'},
+      car:{x:round(C.x),y:round(C.y),scale:round(C.s),visiblePixelWidth:round(alphaBounds(C.body).w*C.s),
+        visiblePixelHeight:round(alphaBounds(C.body).h*C.s)},
+      paintAlignment:{offsetX:round(C.paintAlign.dx),offsetY:round(C.paintAlign.dy),
+        scaleX:round(C.paintAlign.sx),scaleY:round(C.paintAlign.sy),pairLocked:C.locked},
+      dimensionsMm:{length:number('carLength')||null,height:number('carHeight')||null,
+        referenceLength:number('carRefLength')||null,referenceHeight:number('carRefHeight')||null},
+      source:{body:C.body.name,paint:C.paint.name,reference:activeRef()?.name||null},
+      wheels
+    };
+  }
+  const jsonBlob=()=>new Blob([JSON.stringify(geometry(),null,2)+'\n'],{type:'application/json'});
+  by('carExportGeometry').onclick=()=>{
+    try{validate();downloadBlob(jsonBlob(),baseName()+'_geometry.json');status('Wheel coordinates and car geometry exported.');}
+    catch(e){status(e.message)}
+  };
+  by('carExportPair').onclick=async()=>{
+    try{
+      validate();const name=baseName();
+      const body=await canvasBlobPng(layerCanvas('body')),paint=await canvasBlobPng(layerCanvas('paint'));
+      downloadBlob(body,name+'_body.png');
+      setTimeout(()=>downloadBlob(paint,name+'_paint.png'),220);
+      status('Exported aligned BODY + PAINT PNGs ('+C.w+'×'+C.h+').');
+    }catch(e){console.error(e);status(e.message);}
+  };
+
+  // Self-contained store-only ZIP: PNG/WebP data is already compressed.
+  const crcTable=(()=>{
+    const t=new Uint32Array(256);
+    for(let n=0;n<256;n++){let c=n;for(let i=0;i<8;i++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;
+  })();
+  function crc32(b){let c=0xffffffff;for(const n of b)c=crcTable[(c^n)&255]^(c>>>8);return(c^0xffffffff)>>>0;}
+  const le16=(v,p,n)=>v.setUint16(p,n,true),le32=(v,p,n)=>v.setUint32(p,n>>>0,true);
+  async function makeZip(entries){
+    const encoder=new TextEncoder(),locals=[],centers=[];let offset=0;
+    for(const item of entries){
+      const name=encoder.encode(item.path),bytes=new Uint8Array(await item.blob.arrayBuffer());
+      if(name.length>65535||bytes.byteLength>0xffffffff)throw new Error('ZIP entry too large.');
+      const crc=crc32(bytes),local=new Uint8Array(30+name.length),lv=new DataView(local.buffer);
+      le32(lv,0,0x04034b50);le16(lv,4,20);le16(lv,6,0x0800);le16(lv,8,0);
+      le32(lv,14,crc);le32(lv,18,bytes.byteLength);le32(lv,22,bytes.byteLength);le16(lv,26,name.length);
+      local.set(name,30);locals.push(local,bytes);
+      const central=new Uint8Array(46+name.length),cv=new DataView(central.buffer);
+      le32(cv,0,0x02014b50);le16(cv,4,20);le16(cv,6,20);le16(cv,8,0x0800);
+      le32(cv,16,crc);le32(cv,20,bytes.byteLength);le32(cv,24,bytes.byteLength);
+      le16(cv,28,name.length);le32(cv,42,offset);central.set(name,46);centers.push(central);
+      offset+=local.length+bytes.byteLength;
+    }
+    const centralSize=centers.reduce((n,x)=>n+x.length,0),end=new Uint8Array(22),ev=new DataView(end.buffer);
+    le32(ev,0,0x06054b50);le16(ev,8,entries.length);le16(ev,10,entries.length);
+    le32(ev,12,centralSize);le32(ev,16,offset);
+    return new Blob([...locals,...centers,end],{type:'application/zip'});
+  }
+  async function wheelPng(asset){
+    const c=document.createElement('canvas');c.width=asset.w;c.height=asset.h;c.getContext('2d').drawImage(asset.img,0,0);
+    return canvasBlobPng(c);
+  }
+  by('carExportZip').onclick=async()=>{
+    const button=by('carExportZip');
+    try{
+      validate();button.disabled=true;status('Building car package…');
+      const name=baseName();
+      const entries=[
+        {path:'body/'+name+'_body.png',blob:await canvasBlobPng(layerCanvas('body'))},
+        {path:'paint/'+name+'_paint.png',blob:await canvasBlobPng(layerCanvas('paint'))},
+        {path:'data/'+name+'_geometry.json',blob:jsonBlob()}
+      ];
+      for(const k of wnames){const wheel=C.wheel[k];
+        if(wheel.image)entries.push({path:'wheels/'+name+'_'+k+'.png',blob:await wheelPng(wheel.image)});
+      }
+      const zip=await makeZip(entries);downloadBlob(zip,name+'_car_assets.zip');
+      status('Car package ready: matched BODY/PAINT, wheel files and coordinate JSON.');
+    }catch(e){console.error(e);status(e.message||'Could not export ZIP.');}
+    finally{button.disabled=false;}
+  };
+  if(window.ResizeObserver)new ResizeObserver(()=>draw()).observe(view);
+  window.addEventListener('resize',draw);
+  document.querySelector('[data-tab="carStudioTab"]').addEventListener('click',()=>requestAnimationFrame(fitView));
+  syncCarControls();syncPaintControls();syncWheels();
+})();
