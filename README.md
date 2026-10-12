@@ -58,3 +58,14 @@ The **Car Asset Studio** tab combines the car-production steps into one browser 
 You can **re-import the JSON** after re-importing BODY/PAINT to continue editing wheel positions, canvas size and transforms without manually re-entering coordinates. The JSON is a SpriteR asset-side geometry record; importing this metadata into the Tokyo SHIFT game configuration is a separate integration step. Neither reference PNGs nor brush guides are exported into the car layers.
 
 For precise original-model proportions, enter verified body dimensions; this tool does not assume dimensions or alter the model-specific silhouette.
+
+
+### Vehicle-size guidance (bundled JSON)
+Car Asset Studio includes the supplied \`spriter_vehicle_dimensions.json\` with 38 vehicles,
+66 case-sensitive PNG basename mappings, and percent differences against AE86 and R32.
+Import a matching BODY/PAINT PNG for automatic identification; choose a vehicle manually
+when a file is unlisted. The guide displays **longer/shorter**, **taller/lower**, and
+**wheelbase** differences against the selected reference (both when both references are visible).
+Switching references changes the advisory percentages only: no image geometry, scaling,
+or saved wheel coordinates are modified. You can temporarily load an updated reference
+JSON using the optional control in Car Asset Studio.
