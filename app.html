@@ -6,11 +6,12 @@
 <title>SpriteR</title>
 <link rel="stylesheet" href="app.css?v=6" />
 <link rel="stylesheet" href="app-reference.css?v=3" />
+<link rel="stylesheet" href="app-car.css?v=1" />
 </head>
 <body>
 <div class="app">
 <div class="safe-top" aria-hidden="true"></div>
-<header class="apphead"><div class="brandrow"><div class="brand"><h1>SpriteR</h1><div class="sub">Inspect · Align · Resize · Export</div></div><div class="status" id="globalStatus">Ready</div></div><nav class="tabs"><button class="tabbtn active" data-tab="assetsTab">1 · Assets</button><button class="tabbtn" data-tab="alignTab">2 · Canvas Align</button><button class="tabbtn" data-tab="referenceTab">3 · Reference Layout</button><button class="tabbtn" data-tab="resizeTab">4 · Resize & Export</button><button class="tabbtn" data-tab="designTab">5 · Sprite Design</button><button class="tabbtn" data-tab="atlasTab">6 · Atlas Builder</button></nav></header>
+<header class="apphead"><div class="brandrow"><div class="brand"><h1>SpriteR</h1><div class="sub">Inspect · Align · Resize · Export</div></div><div class="status" id="globalStatus">Ready</div></div><nav class="tabs"><button class="tabbtn" data-tab="carStudioTab">Car Asset Studio</button><button class="tabbtn active" data-tab="assetsTab">1 · Assets</button><button class="tabbtn" data-tab="alignTab">2 · Canvas Align</button><button class="tabbtn" data-tab="referenceTab">3 · Reference Layout</button><button class="tabbtn" data-tab="resizeTab">4 · Resize & Export</button><button class="tabbtn" data-tab="designTab">5 · Sprite Design</button><button class="tabbtn" data-tab="atlasTab">6 · Atlas Builder</button></nav></header>
 <section class="tabpanel active" id="assetsTab"><div class="assetgrid"><div><div class="drop" id="drop"><strong>Drop PNG/WebP/JPEG sprites here</strong>or tap to choose multiple files<input id="files" type="file" accept="image/png,image/webp,image/jpeg" multiple hidden></div><div class="section" style="margin-top:16px"><h2>Asset order</h2><div class="note">This order is used when <b>Each uploaded image = one frame</b>. Drag rows or use ↑/↓. You can also delete any asset directly from this list.</div><div id="assets" class="asset-list"><div class="status">No sprites loaded yet.</div></div></div></div><aside><div class="section"><h2>Sequence naming</h2><div class="field"><label>Base name</label><input id="renameBase" type="text" value="Character-Action"></div><div class="row"><div class="field"><label>Start number</label><input id="renameStart" type="number" min="0" value="1"></div><div class="field"><label>Digits</label><select id="renameDigits"><option>2</option><option selected>3</option><option>4</option></select></div></div><div class="btnrow"><button class="secondary" id="applyRename">Apply names in order</button><button id="restoreNames">Restore uploaded names</button></div><div class="note">Example: <code>Character-Action-001.png</code>. The originals on your device are not changed; these names are used for frames and exported copies.</div></div><div class="section"><h2>Selected asset</h2><div class="summary" id="selectedInfo">Select an asset to see details.</div><div class="btnrow" style="margin-top:8px"><button id="duplicateSelected">Duplicate</button><button id="downloadSelected">Download renamed copy</button><button class="danger" id="removeSelected">Delete selected</button></div></div><div class="section"><h2>Sequence actions</h2><div class="btnrow"><button id="downloadAll">Download all renamed copies</button><button id="clearAll" class="danger">Clear all</button></div></div></aside></div></section>
 <section class="tabpanel" id="designTab"><div class="workspace"><aside class="side"><div class="section"><h2>Frame source</h2><div class="field"><label>Mode</label><select id="mode"><option value="files">Each uploaded image = one frame</option><option value="sheet">Slice selected sprite sheet</option></select></div><div id="sheetControls" style="display:none"><div class="row"><div class="field"><label>Frame width <small>px</small></label><input id="fw" type="number" min="1" value="64"></div><div class="field"><label>Frame height <small>px</small></label><input id="fh" type="number" min="1" value="64"></div></div><div class="row"><div class="field"><label>Margin <small>px</small></label><input id="margin" type="number" min="0" value="0"></div><div class="field"><label>Spacing <small>px</small></label><input id="spacing" type="number" min="0" value="0"></div></div><button id="guess">Guess frame size</button><div class="note">Important: if artwork spills outside each sheet cell, no atlas builder can recover those overflow pixels. For big sword slashes or effects, use larger cells or upload each frame as a separate image.</div></div></div><div class="section"><h2>Master canvas</h2><div class="row"><div class="field"><label>Logical width <small>px</small></label><input id="canvasW" type="number" min="1" value="0"></div><div class="field"><label>Logical height <small>px</small></label><input id="canvasH" type="number" min="1" value="0"></div></div><div class="btnrow"><button id="setCanvasMax">Use max frame size</button><button id="centerRoot">Root at bottom centre</button></div><div class="note">This is the shared animation space for every frame. The preview and atlas JSON both use this logical canvas.</div></div><div class="section"><h2>Root / pivot marker</h2><div class="row"><div class="field"><label>Root X <small>px</small></label><input id="rootX" type="number" value="0"></div><div class="field"><label>Root Y <small>px</small></label><input id="rootY" type="number" value="0"></div></div><label class="check"><input id="showRoot" type="checkbox" checked> Show root marker on preview</label><div class="note">Set this to the feet/ground point that should stay consistent across the animation. The atlas JSON exports this as a pivot value.</div></div><div class="section"><h2>Current frame alignment</h2><div class="row"><div class="field"><label>Offset X <small>px</small></label><input id="offsetX" type="number" value="0"></div><div class="field"><label>Offset Y <small>px</small></label><input id="offsetY" type="number" value="0"></div></div><div class="note">Move the current frame inside the master canvas so the feet line up with the root marker. This offset is saved per frame.</div></div><div class="section"><h2>Animation test</h2><div class="field"><label>Frame rate <small><span id="fpsLabel">12</span> FPS</small></label><input id="fps" type="range" min="1" max="30" value="12"></div><label class="check"><input id="pixel" type="checkbox" checked> Pixel-perfect / nearest-neighbour</label><label class="check"><input id="pingpong" type="checkbox"> Ping-pong playback</label><div class="btnrow"><button class="primary" id="play">▶ Play</button><button id="prev">◀</button><button id="next">▶</button></div></div><div class="section"><h2>Preview navigation</h2><div class="field"><label>Zoom <small><span id="zoomLabel">100%</span></small></label><input id="previewZoom" type="range" min="1" max="1000" step="1" value="100"></div><div class="btnrow"><button id="fitPreview">Fit frame</button><button id="actualPreview">100%</button><button id="resetPreviewPan">Center</button></div><div class="note">Use the grey button inside the preview itself to lock or unlock dragging and pinch zoom.</div></div><div class="section"><h2>Measurements</h2><div class="summary" id="measurements">Load a sprite to see dimensions and frame counts.</div></div></aside><main class="content"><div class="topbar"><div class="metrics" id="metrics"></div><div class="status" id="designStatus">Ready</div></div><div class="stagewrap"><div class="viewport" id="previewViewport"><div class="canvaslayer" id="previewLayer"><canvas id="preview"></canvas></div><div class="hud" id="hud">Frame —</div><button class="panhint" id="previewHint" type="button">Navigation locked</button></div></div><div class="timeline"><div class="btnrow"><button id="first">|◀</button><button id="last">▶|</button><span class="status" id="frameText">No frames</span></div><div class="note">Drag thumbnails to change sequence order. In uploaded-frame mode this also changes the Assets order and atlas order.</div><div class="thumbs" id="thumbs"></div></div></main></div></section>
 <section class="tabpanel" id="atlasTab"><div class="atlaslayout"><aside class="atlascontrols"><div class="section"><h2>Atlas layout</h2><div class="field"><label>Frames per row</label><input id="framesPerRow" type="number" min="1" max="64" value="8"></div><div class="field"><label>Export resolution</label><select id="resolution"><option value="1">1× (original)</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option><option value="0.25">0.25×</option><option value="2">2× (upscale)</option></select></div><div class="row"><div class="field"><label>Padding <small>px</small></label><input id="padding" type="number" min="0" max="64" value="2"></div><div class="field"><label>Outer margin <small>px</small></label><input id="atlasMargin" type="number" min="0" max="64" value="2"></div></div><label class="check"><input id="trimAtlas" type="checkbox" checked> Trim transparent bounds and preserve logical canvas</label><label class="check"><input id="power2" type="checkbox"> Round atlas to power-of-two</label><button class="secondary" id="build">Build / refresh atlas</button><div class="note">Recommended: use trimmed PNG + JSON atlas for Phaser. This keeps one consistent character coordinate system while allowing large sword/effect frames to take different physical sizes.</div></div><div class="section"><h2>Atlas preview</h2><div class="field"><label>Zoom <small><span id="atlasZoomLabel">100%</span></small></label><input id="atlasZoom" type="range" min="0.1" max="800" step="0.1" value="100"></div><div class="btnrow"><button id="fitAtlas">Fit atlas</button><button id="actualAtlas">100%</button><button id="resetAtlasPan">Center</button></div><div class="note">Use the grey button inside the atlas preview itself to lock or unlock dragging and pinch zoom.</div></div><div class="section"><h2>Export</h2><div class="field"><label>Base filename</label><input id="baseName" type="text" value="sprite-atlas"></div><div class="btnrow"><button class="primary" id="savePng" disabled>Download PNG</button><button class="primary" id="saveJson" disabled>Download JSON</button></div></div><div class="section"><h2>Atlas info</h2><div class="summary" id="atlasInfo">Build an atlas to see dimensions.</div></div></aside><main class="atlasmain"><div class="topbar"><div class="metrics" id="atlasMetrics"></div><div class="status" id="atlasStatus">Not built</div></div><div class="atlasviewwrap"><div class="atlasviewport" id="atlasViewport"><div class="atlaslayer" id="atlasLayer"></div><div class="atlasempty" id="atlasEmpty">Build an atlas to preview it.</div><button class="panhint" id="atlasHint" type="button">Navigation locked</button></div></div></main></div></section>
@@ -239,6 +240,101 @@
   </div>
 </section>
 
+
+<section class="tabpanel" id="carStudioTab">
+  <div class="carlayout">
+    <aside class="carcontrols">
+      <div class="section">
+        <h2>1 · Reference cars</h2>
+        <div class="field"><label>AE86 reference PNG (small car / wheels)</label><input type="file" accept="image/png,image/webp" id="carRefAE86"></div>
+        <div class="field"><label>R32 reference PNG (larger car / wheels)</label><input type="file" accept="image/png,image/webp" id="carRefR32"></div>
+        <div class="field"><label>Visible reference</label><select id="carReference"><option value="ae86">AE86</option><option value="r32">Skyline R32</option><option value="both">Both</option><option value="none">Hide references</option></select></div>
+        <div class="field"><label>Reference opacity <small id="carRefOpacityLabel">45%</small></label><input type="range" id="carRefOpacity" min="0" max="100" value="45"></div>
+        <div class="note">References share the output canvas's bottom-right origin. References and wheels never get baked into the BODY or PAINT files.</div>
+      </div>
+      <div class="section">
+        <h2>2 · Import car layers</h2>
+        <div class="field"><label>Car ID (base filename)</label><input type="text" id="carId" value="rx7_fd" autocomplete="off"></div>
+        <div class="field"><label>BODY — outlines, windows and lights</label><input type="file" accept="image/png,image/webp" id="carBodyFile"></div>
+        <div class="field"><label>PAINT — tintable car colour</label><input type="file" accept="image/png,image/webp" id="carPaintFile"></div>
+        <label class="check"><input type="checkbox" id="carLayersLocked"> Lock BODY + PAINT together</label>
+        <div class="row"><div class="field"><label>Paint offset X</label><input type="number" step=".25" id="carPaintX" value="0"></div><div class="field"><label>Paint offset Y</label><input type="number" step=".25" id="carPaintY" value="0"></div></div>
+        <div class="row"><div class="field"><label>Paint width scale %</label><input type="number" min="1" max="400" step=".1" id="carPaintSX" value="100"></div><div class="field"><label>Paint height scale %</label><input type="number" min="1" max="400" step=".1" id="carPaintSY" value="100"></div></div>
+        <div class="btnrow"><button id="carResetPaint">Reset layer alignment</button><button class="secondary" id="carLockPair">Align complete · lock pair</button></div>
+        <div class="note">Before locking: select “Align paint” and drag it over BODY at original resolution. After locking, both layers move/scale as a pair.</div>
+      </div>
+      <div class="section">
+        <h2>3 · Scale and position</h2>
+        <div class="row"><div class="field"><label>Car X <small>px</small></label><input type="number" id="carX" step=".25" value="0"></div><div class="field"><label>Car Y <small>px</small></label><input type="number" id="carY" step=".25" value="0"></div></div>
+        <div class="field"><label>Uniform scale <small>%</small></label><input type="number" id="carScale" step=".05" min="1" max="1000" value="100"></div>
+        <div class="btnrow"><button id="carMatchNose">Align nose + bottom</button><button id="carResetTransform">Reset car transform</button></div>
+        <div class="note">Move the car, then drag the top-left square diagonally. The opposite, bottom-right corner stays anchored as it scales.</div>
+        <h2 style="margin-top:14px">Vehicle size guide</h2>
+        <div class="note">Automatic guide from the supplied vehicle-dimensions JSON. The numbers are for visual proportion only — they never change your car layers.</div>
+        <div class="field"><label>Target vehicle (auto-detected from filename)</label><select id="carProportionVehicle"><option value="auto">Auto-detect from BODY / PAINT filename</option></select></div>
+        <div class="summary car-proportion-result" id="carProportionGuide">Loading dimensions…</div>
+        <div class="note" id="carProportionStatus">Loading vehicle size references…</div>
+        <details class="car-proportion-data"><summary>Update reference dimensions JSON</summary>
+          <div class="field"><label>Replacement dimensions JSON</label><input id="carProportionUpload" type="file" accept=".json,application/json"></div>
+          <div class="note" id="carProportionDataStatus">Bundled comparison file</div>
+        </details>
+        <h2 style="margin-top:14px">Manual size tools (optional)</h2>
+        <div class="row"><div class="field"><label>Ref length <small>mm</small></label><input type="number" min="1" id="carRefLength" placeholder="e.g. 4200"></div><div class="field"><label>Ref height <small>mm</small></label><input type="number" min="1" id="carRefHeight" placeholder="e.g. 1335"></div></div>
+        <div class="row"><div class="field"><label>New car length <small>mm</small></label><input type="number" min="1" id="carLength"></div><div class="field"><label>New car height <small>mm</small></label><input type="number" min="1" id="carHeight"></div></div>
+        <div class="summary" id="carRatio">Enter vehicle dimensions for a length/height comparison.</div>
+        <div class="btnrow" style="margin-top:7px"><button id="carApplyLength">Match reference length</button></div>
+        <div class="note">Uses entered specifications and the visible artwork bounds as a sizing guide. Height is checked separately; the car is not distorted.</div>
+      </div>
+      <div class="section">
+        <h2>4 · Paint cleanup</h2>
+        <div class="car-toolgroup" id="carTools">
+          <button data-car-tool="move" class="active">Move / resize</button>
+          <button data-car-tool="paint-align">Align paint</button>
+          <button data-car-tool="picker">Picker</button>
+          <button data-car-tool="brush">Brush</button>
+          <button data-car-tool="eraser">Eraser</button>
+          <button data-car-tool="pan">Pan view</button>
+        </div>
+        <div class="row"><div class="field"><label>Brush colour</label><input type="color" id="carBrushColor" value="#ffffff"></div><div class="field"><label>Size <small id="carBrushSizeLabel">8px</small></label><input type="range" id="carBrushSize" min="1" max="120" value="8"></div></div>
+        <div class="btnrow"><button id="carUndo">Undo stroke</button><button id="carRedo">Redo stroke</button></div>
+        <label class="check"><input id="carShowBody" type="checkbox" checked> Show BODY</label>
+        <label class="check"><input id="carShowPaint" type="checkbox" checked> Show PAINT</label>
+        <div class="note">Brush size is measured in source-image pixels for precise touch-ups. Eraser removes pixels to transparency. Edits affect PAINT only.</div>
+      </div>
+      <div class="section">
+        <h2>5 · Wheels</h2>
+        <div class="field"><label>Rear wheel sprite (optional)</label><input type="file" accept="image/png,image/webp" id="carRearWheelFile"></div>
+        <div class="field"><label>Front wheel sprite (optional)</label><input type="file" accept="image/png,image/webp" id="carFrontWheelFile"></div>
+        <label class="check"><input id="carShowWheels" type="checkbox" checked> Preview wheels</label>
+        <div class="btnrow"><button id="carPickRear">Place rear wheel</button><button id="carPickFront">Place front wheel</button></div>
+        <div class="row"><div class="field"><label>Rear X</label><input id="carRearX" type="number" step=".25"></div><div class="field"><label>Rear Y</label><input id="carRearY" type="number" step=".25"></div></div>
+        <div class="row"><div class="field"><label>Front X</label><input id="carFrontX" type="number" step=".25"></div><div class="field"><label>Front Y</label><input id="carFrontY" type="number" step=".25"></div></div>
+        <div class="row"><div class="field"><label>Rear radius <small>px</small></label><input id="carRearRadius" type="number" min="1" step=".5" value="38"></div><div class="field"><label>Front radius <small>px</small></label><input id="carFrontRadius" type="number" min="1" step=".5" value="38"></div></div>
+        <div class="note">Click to set wheel centres; drag their markers to adjust. Coordinates are exported relative to the finished canvas.</div>
+      </div>
+      <div class="section">
+        <h2>6 · Canvas anchored bottom-right</h2>
+        <div class="row"><div class="field"><label>Output width</label><input id="carCanvasW" type="number" min="1" max="8192" value="1166"></div><div class="field"><label>Output height</label><input id="carCanvasH" type="number" min="1" max="8192" value="420"></div></div>
+        <div class="btnrow"><button id="carUseAE86Canvas">Use AE86 size</button><button id="carWider">+40px width</button><button id="carTaller">+40px height</button></div>
+        <div class="note">Increasing canvas dimensions adds transparent space to the left/top. Your completed car and wheels stay registered at the bottom right.</div>
+      </div>
+      <div class="section">
+        <h2>7 · Export</h2>
+        <div class="field"><label>Continue from saved geometry JSON</label><input id="carImportGeometry" type="file" accept="application/json,.json"></div>
+        <label class="check"><input id="carPixel" type="checkbox"> Nearest-neighbour scaling</label>
+        <div class="btnrow"><button class="primary" id="carExportZip">Download car package ZIP</button><button id="carExportPair">Download BODY + PAINT</button><button id="carExportGeometry">Download JSON</button></div>
+        <div class="note">The ZIP contains <code>body/</code>, <code>paint/</code>, <code>wheels/</code> (when provided), and <code>data/</code>. Both PNG layers share exact output dimensions; reference art never exports.</div>
+        <div class="summary" id="carSummary">Import your car's BODY and PAINT files to begin.</div>
+      </div>
+    </aside>
+    <main class="carmain">
+      <div class="topbar"><div class="metrics" id="carMetrics"></div><div class="status" id="carStatus">Load reference and car layers to start.</div></div>
+      <div class="carviewtools"><button id="carZoomOut">−</button><span id="carZoomLabel">100%</span><button id="carZoomIn">+</button><button id="carFit">Fit</button><button id="carActual">100%</button><span>Scroll/pinch to zoom · Space-drag to pan</span></div>
+      <div class="carviewwrap"><div id="carViewport" class="carviewport"><canvas id="carCanvas"></canvas><div class="carviewport-help">Dashed frame = final canvas · Cyan square = top-left resize handle · Wheel circles = editable guides</div></div></div>
+    </main>
+  </div>
+</section>
+
 <section class="tabpanel" id="resizeTab">
   <div class="resizelayout">
     <aside class="resizecontrols">
@@ -293,5 +389,7 @@
 <script src="app-align.js?v=6"></script>
 <script src="app-resize.js?v=3"></script>
 <script src="app-reference.js?v=3"></script>
+<script src="app-car.js?v=2"></script>
+<script src="app-car-proportions.js?v=1"></script>
 </body>
 </html>
