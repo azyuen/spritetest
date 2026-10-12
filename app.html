@@ -311,6 +311,7 @@
       </div>
       <div class="section">
         <h2>7 · Export</h2>
+        <div class="field"><label>Continue from saved geometry JSON</label><input id="carImportGeometry" type="file" accept="application/json,.json"></div>
         <label class="check"><input id="carPixel" type="checkbox"> Nearest-neighbour scaling</label>
         <div class="btnrow"><button class="primary" id="carExportZip">Download car package ZIP</button><button id="carExportPair">Download BODY + PAINT</button><button id="carExportGeometry">Download JSON</button></div>
         <div class="note">The ZIP contains <code>body/</code>, <code>paint/</code>, <code>wheels/</code> (when provided), and <code>data/</code>. Both PNG layers share exact output dimensions; reference art never exports.</div>
