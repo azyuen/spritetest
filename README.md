@@ -41,3 +41,20 @@ Canvas Align includes a Tokyo SHIFT car workflow for standardising deployable ve
 7. Export the Tokyo SHIFT geometry JSON.
 
 The geometry JSON records the common canvas/floor, body transform, independent wheel geometry and linked variants. The intent is that body-kit variants never require their own hidden scale/offset compensation.
+
+
+## Car Asset Studio (Tokyo SHIFT production)
+
+The **Car Asset Studio** tab combines the car-production steps into one browser workflow:
+
+1. Upload the AE86 and Skyline R32 reference PNGs, then toggle their overlays (or hide both). Each reference is registered to the **bottom-right** of the chosen output canvas, not used as another model's silhouette.
+2. Import BODY and PAINT independently. In **Align paint** mode, drag PAINT into exact registration over BODY at source resolution; adjust relative X/Y and width/height if necessary, then **lock the pair**.
+3. Move the linked car, or shrink uniformly by dragging its top-left handle while its opposite corner stays fixed. Optional real-world reference and model length/height fields provide a width-scaling guide; height remains a check, not a forced stretch.
+4. Use picker, brush and eraser to clean PAINT pixels without modifying BODY. Stroke undo/redo is available.
+5. Upload optional rear and front wheel images. Place each wheel centre by tapping the preview, drag centres, and set each radius independently. Wheels are overlays, **not baked into the car-layer PNGs**.
+6. Change the output canvas size, including extra width/height, without altering the output's bottom-right registration. Export writes transparent BODY and PAINT canvases with **identical pixel sizes**.
+7. Download the ZIP package. It contains \`body/<car_id>.png\`, \`paint/<car_id>.png\`, optional \`wheels/\` sprites, and \`data/<car_id>_geometry.json\`. Both PNGs have the same filename in separate folders, as required by the asset workflow. Standalone PNG downloads use \`_body\` and \`_paint\` suffixes because browsers cannot guarantee two distinct download folders.
+
+You can **re-import the JSON** after re-importing BODY/PAINT to continue editing wheel positions, canvas size and transforms without manually re-entering coordinates. The JSON is a SpriteR asset-side geometry record; importing this metadata into the Tokyo SHIFT game configuration is a separate integration step. Neither reference PNGs nor brush guides are exported into the car layers.
+
+For precise original-model proportions, enter verified body dimensions; this tool does not assume dimensions or alter the model-specific silhouette.
